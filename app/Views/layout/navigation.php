@@ -82,26 +82,26 @@ if (file_exists(FCPATH . 'uploads/images/' . $idUser . '.png')) {
 </nav>
 
 <script>
-function uploadProfileImage(input) {
-    if (input.files && input.files[0]) {
-        var formData = new FormData();
-        formData.append('FILE_IMAGE', input.files[0]);
-        $.ajax({
-            url: '<?= base_url('user/uploadimage') ?>',
-            type: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function(resp) {
-                if (resp !== 'ERR') {
-                    location.reload();
-                } else {
-                    alert('Gagal mengunggah foto');
+    function uploadProfileImage(input) {
+        if (input.files && input.files[0]) {
+            var formData = new FormData();
+            formData.append('FILE_IMAGE', input.files[0]);
+            $.ajax({
+                url: '<?= base_url('user/uploadimage') ?>',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(resp) {
+                    if (resp !== 'ERR') {
+                        location.reload();
+                    } else {
+                        alert('Gagal mengunggah foto');
+                    }
                 }
-            }
-        });
+            });
+        }
     }
-}
 </script>
 
 <style>
@@ -112,6 +112,7 @@ function uploadProfileImage(input) {
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
     }
+
     .fa-14x {
         font-size: 1.4em;
     }
