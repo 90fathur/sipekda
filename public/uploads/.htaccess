@@ -1,0 +1,33 @@
+# ----------------------------------------------------------------------
+# Antigravity Security Hardening: Disable Script Execution in Uploads
+# ----------------------------------------------------------------------
+
+# Disable Directory Browsing
+Options -Indexes -ExecCGI
+
+# Turn off PHP engine if mod_php is loaded
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Remove script handlers
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py .pyc .pyo .pyd .sh .bash .shtml
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py .pyc .pyo .pyd .sh .bash .shtml
+
+# Block access to any executable scripts or hidden files
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phar|cgi|pl|py|pyc|pyo|pyd|sh|bash|shtml|env|git|htaccess|htpasswd|ini|conf|sql|bak|swp)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Allow only standard static media files
+<FilesMatch "\.(?i:pdf|png|jpe?g|bmp|webp|xls|xlsx|csv)$">
+    Order Deny,Allow
+    Allow from all
+</FilesMatch>

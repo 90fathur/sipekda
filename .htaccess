@@ -1,0 +1,25 @@
+# ----------------------------------------------------------------------
+# SIPEKDA ASSAMI - ROOT SECURITY & ROUTING HTACCESS
+# ----------------------------------------------------------------------
+
+# 1. Disable directory browsing
+Options -Indexes
+
+# 2. Block direct access to sensitive files
+<FilesMatch "(^\.env|composer\.(json|lock)|phpunit.*|\.(sql|md|yml|yaml|log))$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 3. Block access to hidden files and folders (.git, .env, etc.)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule "(^|/)\.(?!well-known)" - [F]
+</IfModule>
+
+# 4. Protect internal application folders if DocumentRoot is not set to /public
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
