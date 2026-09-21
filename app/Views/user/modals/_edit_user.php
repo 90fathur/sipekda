@@ -26,9 +26,9 @@
             </select>
         </div>
 
-        <div class="form-group mb-3">
+        <div class="form-group mb-3" style="position: relative;">
             <label class="font-bold">Unit Kerja / OPD <span class="text-danger">*</span></label>
-            <select name="KD_UNITKER" class="form-control select2_edit" style="width:100%" required>
+            <select name="KD_UNITKER" id="edit_KD_UNITKER" class="form-control select2_edit" style="width:100%" required>
                 <option value="">-- Pilih OPD --</option>
                 <?php foreach ($listUnitKerja as $skpd): ?>
                     <option value="<?= esc($skpd['KD_SKPD']) ?>" <?= ($user['KD_UNITKER'] === $skpd['KD_SKPD']) ? 'selected' : '' ?>>
@@ -54,7 +54,13 @@
 </form>
 
 <script>
-$('.select2_edit').select2({ dropdownParent: $('#mdlEdit') });
+$(document).ready(function() {
+    $('#edit_KD_UNITKER').select2({
+        dropdownParent: $('#edit_KD_UNITKER').parent(),
+        width: '100%',
+        placeholder: '-- Pilih OPD --'
+    });
+});
 
 function submitEditUser(e) {
     e.preventDefault();

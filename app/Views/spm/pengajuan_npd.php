@@ -216,7 +216,12 @@
 <script>
 $(document).ready(function() {
     $('.select2').select2();
-    $('.select2_modal').select2({ dropdownParent: $('#mdlAddDetail') });
+    $('#mdlAddDetail').on('shown.bs.modal', function () {
+        $('#detail_KD_REKENING').select2({
+            dropdownParent: $('#detail_KD_REKENING').parent(),
+            width: '100%'
+        });
+    });
     loadDetailTable();
     loadFileTable();
 });

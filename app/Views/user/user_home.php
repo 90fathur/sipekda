@@ -103,7 +103,6 @@
 <script>
 $(document).ready(function () {
     loadUserData();
-    $('.select2').select2({ dropdownParent: $('#mdlRole') });
 });
 
 function loadUserData() {
@@ -174,6 +173,13 @@ function openCreateUserModal() {
     $.get('<?= base_url('user/createuser') ?>', function (html) {
         $('#createModalContent').html(html);
         $('#mdlCreate').modal('show');
+        $('#mdlCreate').one('shown.bs.modal', function () {
+            $('#create_KD_UNITKER').select2({
+                dropdownParent: $('#create_KD_UNITKER').parent(),
+                width: '100%',
+                placeholder: '-- Pilih OPD --'
+            });
+        });
     });
 }
 
@@ -181,6 +187,13 @@ function openEditUserModal(id) {
     $.get('<?= base_url('user/edituser') ?>/' + id, function (html) {
         $('#editModalContent').html(html);
         $('#mdlEdit').modal('show');
+        $('#mdlEdit').one('shown.bs.modal', function () {
+            $('#edit_KD_UNITKER').select2({
+                dropdownParent: $('#edit_KD_UNITKER').parent(),
+                width: '100%',
+                placeholder: '-- Pilih OPD --'
+            });
+        });
     });
 }
 
@@ -233,6 +246,13 @@ function openRoleModal(idUser, username) {
     $('#role_USERNAME').text(username);
     loadRoleTable(idUser);
     $('#mdlRole').modal('show');
+    $('#mdlRole').one('shown.bs.modal', function () {
+        $('#role_KD_SKPD').select2({
+            dropdownParent: $('#role_KD_SKPD').parent(),
+            width: '80%',
+            placeholder: '-- Pilih SKPD untuk Diberikan Akses --'
+        });
+    });
 }
 
 function loadRoleTable(idUser) {

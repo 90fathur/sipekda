@@ -72,6 +72,19 @@
         .navbar-default, .sidebar-collapse {
             overflow: hidden;
         }
+
+        /* Select2 Dropdown in Modal Styling & z-index */
+        .select2-container {
+            width: 100% !important;
+        }
+        .select2-container--open {
+            z-index: 99999 !important;
+        }
+        .select2-dropdown {
+            z-index: 99999 !important;
+            border: 1px solid #1ab394 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        }
     </style>
 
     <?= $this->renderSection('styles') ?>

@@ -23,9 +23,9 @@
             </select>
         </div>
 
-        <div class="form-group mb-3">
+        <div class="form-group mb-3" style="position: relative;">
             <label class="font-bold">Unit Kerja / OPD <span class="text-danger">*</span></label>
-            <select name="KD_UNITKER" class="form-control select2_modal" style="width:100%" required>
+            <select name="KD_UNITKER" id="create_KD_UNITKER" class="form-control select2_modal" style="width:100%" required>
                 <option value="">-- Pilih OPD --</option>
                 <?php foreach ($listUnitKerja as $skpd): ?>
                     <option value="<?= esc($skpd['KD_SKPD']) ?>"><?= esc($skpd['KD_SKPD']) ?> - <?= esc($skpd['NM_SKPD']) ?></option>
@@ -44,7 +44,13 @@
 </form>
 
 <script>
-$('.select2_modal').select2({ dropdownParent: $('#mdlCreate') });
+$(document).ready(function() {
+    $('#create_KD_UNITKER').select2({
+        dropdownParent: $('#create_KD_UNITKER').parent(),
+        width: '100%',
+        placeholder: '-- Pilih OPD --'
+    });
+});
 
 function submitCreateUser(e) {
     e.preventDefault();
