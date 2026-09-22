@@ -9,6 +9,10 @@
                     <small>Berdasarkan Nota Pencairan Dana (NPD): <strong><?= esc($npd['ID_PENGAJUAN'] ?? '-') ?></strong></small>
                 </div>
                 <div class="ibox-content">
+                    <div class="alert alert-info py-2 mb-3">
+                        <i class="fa fa-info-circle"></i> Seluruh data formulir di bawah ini <strong>terkunci (readonly)</strong> karena ditarik langsung dari data NPD yang telah disetujui. Anda hanya perlu memeriksa data dan mengunggah <strong>Berkas Digital Pendukung (PDF)</strong>.
+                    </div>
+
                     <div class="form-group row mb-3">
                         <label class="col-md-3 col-form-label font-bold">ID SPM</label>
                         <div class="col-md-5">
@@ -47,19 +51,19 @@
                         </div>
                     </div>
 
-
-
                     <div class="form-group row mb-3">
                         <label class="col-md-3 col-form-label font-bold">Program / Kegiatan / Sub Kegiatan</label>
                         <div class="col-md-9">
-                            <textarea name="NM_PROGRAM_KEGIATAN_SUBKEGIATAN" rows="4" class="form-control" required><?= esc($npd['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'] ?? '') ?></textarea>
+                            <textarea name="NM_PROGRAM_KEGIATAN_SUBKEGIATAN" rows="4" class="form-control" readonly style="background-color: #eef1f5; color: #2c3e50; font-weight: 500;"><?= esc($npd['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'] ?? '') ?></textarea>
+                            <small class="form-text text-muted"><i class="fa fa-info-circle"></i> Dikunci otomatis sesuai data NPD.</small>
                         </div>
                     </div>
 
                     <div class="form-group row mb-4">
                         <label class="col-md-3 col-form-label font-bold">Sumber Dana</label>
                         <div class="col-md-9">
-                            <input type="text" name="KD_SUMBER_DANA" class="form-control" value="<?= esc($npd['KD_SUMBER_DANA'] ?? '') ?>">
+                            <input type="text" name="KD_SUMBER_DANA" class="form-control font-bold" value="<?= esc($npd['KD_SUMBER_DANA'] ?: ($npd['KD_REKENING_BELANJA'] ?? '')) ?>" readonly style="background-color: #eef1f5; color: #2c3e50;">
+                            <small class="form-text text-muted"><i class="fa fa-info-circle"></i> Dikunci otomatis sesuai data NPD.</small>
                         </div>
                     </div>
 
