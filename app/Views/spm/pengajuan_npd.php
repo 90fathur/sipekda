@@ -51,20 +51,6 @@
                     </div>
 
                     <div class="form-group row mb-3">
-                        <label class="col-md-3 col-form-label font-bold">Klasifikasi Anggaran</label>
-                        <div class="col-md-9">
-                            <select name="KD_REKENING_BELANJA" class="form-control select2" required>
-                                <option value="">-- Pilih Klasifikasi Anggaran --</option>
-                                <?php foreach ($ListMataAnggaran as $ma): ?>
-                                    <option value="<?= esc($ma['KD_MATA_ANGGARAN']) ?>">
-                                        <?= esc($ma['KD_MATA_ANGGARAN']) ?> - <?= esc($ma['NM_MATA_ANGGARAN']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group row mb-3">
                         <label class="col-md-3 col-form-label font-bold">Program / Kegiatan / Sub Kegiatan <span class="text-danger">*</span></label>
                         <div class="col-md-9">
                             <textarea name="NM_PROGRAM_KEGIATAN_SUBKEGIATAN" rows="4" class="form-control" placeholder="Tuliskan nama program, kegiatan, dan rincian peruntukan belanja..." required></textarea>
@@ -72,9 +58,10 @@
                     </div>
 
                     <div class="form-group row mb-4">
-                        <label class="col-md-3 col-form-label font-bold">Sumber Dana</label>
+                        <label class="col-md-3 col-form-label font-bold">Sumber Dana <span class="text-danger">*</span></label>
                         <div class="col-md-9">
-                            <input type="text" name="KD_SUMBER_DANA" class="form-control" placeholder="Contoh: DAU / DAK / PAD">
+                            <input type="text" name="KD_SUMBER_DANA" class="form-control" placeholder="Contoh: DAU / DAK / PAD / DBH Sawit" required>
+                            <small class="form-text text-muted">Tuliskan sumber pendanaan kegiatan ini.</small>
                         </div>
                     </div>
 

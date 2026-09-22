@@ -47,18 +47,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group row mb-3">
-                        <label class="col-md-3 col-form-label font-bold">Klasifikasi Anggaran</label>
-                        <div class="col-md-9">
-                            <select name="KD_REKENING_BELANJA" class="form-control select2_spm" required>
-                                <?php foreach ($ListMataAnggaran as $ma): ?>
-                                    <option value="<?= esc($ma['KD_MATA_ANGGARAN']) ?>" <?= (($npd['KD_REKENING_BELANJA'] ?? '') === $ma['KD_MATA_ANGGARAN']) ? 'selected' : '' ?>>
-                                        <?= esc($ma['KD_MATA_ANGGARAN']) ?> - <?= esc($ma['NM_MATA_ANGGARAN']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
+
 
                     <div class="form-group row mb-3">
                         <label class="col-md-3 col-form-label font-bold">Program / Kegiatan / Sub Kegiatan</label>

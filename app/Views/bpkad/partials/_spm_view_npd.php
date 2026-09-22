@@ -42,11 +42,7 @@
                             <h4 style="margin-bottom: 1px">Sumber Dana</h4>
                             <p>Sumber dana yang di gunakan untuk kegiatan tersebut.</p>
                             <div class="mb-3">
-                                <select class="form-control" disabled>
-                                    <?php foreach ($ListMataAnggaran as $ma): ?>
-                                        <option value="<?= esc($ma['KD_MATA_ANGGARAN']) ?>" <?= $ma['KD_MATA_ANGGARAN'] == $npd['KD_REKENING_BELANJA'] ? 'selected' : '' ?>><?= esc($ma['KD_MATA_ANGGARAN']) ?> - <?= esc($ma['NM_MATA_ANGGARAN']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <input type="text" class="form-control font-bold" value="<?= esc($npd['KD_SUMBER_DANA'] ?: ($npd['KD_REKENING_BELANJA'] ?: '-')) ?>" readonly style="background-color: #f8f9fa;">
                             </div>
 
                             <hr/>

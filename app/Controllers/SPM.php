@@ -201,13 +201,15 @@ class SPM extends BaseController
         try {
             $idNpd = $this->npdModel->generateID();
 
+            $sumberDana = trim($this->request->getPost('KD_SUMBER_DANA') ?? $this->request->getPost('KD_REKENING_BELANJA') ?? '');
+
             $npdData = [
                 'ID_PENGAJUAN'                   => $idNpd,
                 'TGL_PENGAJUAN'                  => date('Y-m-d H:i:s'),
                 'KD_SKPD'                        => $loginData['KD_UNITKER'],
                 'NM_PROGRAM_KEGIATAN_SUBKEGIATAN'=> $this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'),
-                'KD_REKENING_BELANJA'            => $this->request->getPost('KD_REKENING_BELANJA'),
-                'KD_SUMBER_DANA'                 => $this->request->getPost('KD_SUMBER_DANA') ?? '',
+                'KD_REKENING_BELANJA'            => $sumberDana,
+                'KD_SUMBER_DANA'                 => $sumberDana,
                 'ANGGARAN'                       => 0,
                 'KD_STATUS'                      => 1
             ];

@@ -19,8 +19,8 @@
                     <td>: <?= esc($npd['KD_SKPD']) ?></td>
                 </tr>
                 <tr>
-                    <td class="font-bold">Rekening Belanja</td>
-                    <td>: <?= esc($npd['KD_REKENING_BELANJA'] ?: '-') ?></td>
+                    <td class="font-bold">Sumber Dana</td>
+                    <td>: <?= esc($npd['KD_SUMBER_DANA'] ?: ($npd['KD_REKENING_BELANJA'] ?: '-')) ?></td>
                 </tr>
             </table>
         </div>
