@@ -26,13 +26,24 @@
                     <div class="form-group row mb-3">
                         <label class="col-md-3 col-form-label font-bold">Unit Kerja / OPD</label>
                         <div class="col-md-9">
-                            <select name="KD_SKPD" class="form-control select2_spm" required>
-                                <?php foreach ($ListSKPD as $skpd): ?>
-                                    <option value="<?= esc($skpd['KD_SKPD']) ?>" <?= (($npd['KD_SKPD'] ?? $KD_SKPD) === $skpd['KD_SKPD']) ? 'selected' : '' ?>>
-                                        <?= esc($skpd['KD_SKPD']) ?> - <?= esc($skpd['NM_SKPD']) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <?php 
+                            $skpdKode = $npd['KD_SKPD'] ?? $KD_SKPD;
+                            $currentSKPDName = '';
+                            foreach ($ListSKPD as $skpd) {
+                                if ($skpd['KD_SKPD'] === $skpdKode) {
+                                    $currentSKPDName = $skpd['NM_SKPD'];
+                                    break;
+                                }
+                            }
+                            ?>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text bg-light text-warning font-bold"><i class="fa fa-lock"></i></span>
+                                </div>
+                                <input type="text" class="form-control font-bold" value="<?= esc($skpdKode) ?> - <?= esc($currentSKPDName) ?>" readonly style="background-color: #eef1f5; color: #2c3e50;">
+                                <input type="hidden" name="KD_SKPD" value="<?= esc($skpdKode) ?>">
+                            </div>
+                            <small class="form-text text-muted"><i class="fa fa-info-circle"></i> Unit Kerja / OPD dikunci otomatis sesuai data NPD.</small>
                         </div>
                     </div>
 
