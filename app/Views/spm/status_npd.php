@@ -82,7 +82,8 @@ function loadStatusNPD() {
                     s = parseInt(s);
                     if (s === 1) return '<span class="badge badge-info">Verifikasi 1</span>';
                     if (s === 2) return '<span class="badge badge-warning">Verifikasi 2</span>';
-                    if (s === 3) return '<span class="badge badge-primary">Disetujui BPKAD</span>';
+                    if (s === 3) return '<span class="badge badge-primary">Menunggu Persetujuan</span>';
+                    if (s === 4) return '<span class="badge badge-success">Disetujui BPKAD</span>';
                     if (s === 5) return '<span class="badge badge-danger" title="' + (row.ALASAN_PENOLAKAN || 'Ditolak') + '">Ditolak</span>';
                     return '<span class="badge badge-secondary">Draft</span>';
                 }

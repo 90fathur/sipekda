@@ -106,8 +106,8 @@ $routes->group('bpkad', function ($routes) {
         $routes->get('spmviewnpd', 'BPKAD::spmViewNPD');
     });
 
-    // Persetujuan SP2D only for Persetujuan and Admin
-    $routes->group('', ['filter' => 'auth:Persetujuan,Admin'], function ($routes) {
+    // Persetujuan SP2D only for Admin (Persetujuan/KBUD does not need this since SP2D is transferred to SIPD)
+    $routes->group('', ['filter' => 'auth:Admin'], function ($routes) {
         $routes->get('persetujuansp2dhome', 'BPKAD::persetujuanSP2DHome');
         $routes->match(['get', 'post'], 'setproses', 'BPKAD::setProses');
         $routes->match(['get', 'post'], 'cancelproses', 'BPKAD::cancelProses');

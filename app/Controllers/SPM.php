@@ -67,10 +67,10 @@ class SPM extends BaseController
         }
 
         $db = \Config\Database::connect();
-        // NPD status = 3 (Approved by BPKAD), matching current user's SKPD, and not yet in tb_spm
+        // NPD status = 3 or 4 (Approved by BPKAD / Persetujuan Akhir), matching current user's SKPD, and not yet in tb_spm
         $list = $db->table('tb_npd n')
             ->select('n.ID_PENGAJUAN, n.NM_PROGRAM_KEGIATAN_SUBKEGIATAN')
-            ->where('n.KD_STATUS', 3)
+            ->whereIn('n.KD_STATUS', [3, 4])
             ->where('n.KD_SKPD', $loginData['KD_UNITKER'])
             ->where("NOT EXISTS (SELECT 1 FROM tb_spm s WHERE s.ID_NPD = n.ID_PENGAJUAN)", null, false)
             ->get()

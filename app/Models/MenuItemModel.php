@@ -28,8 +28,124 @@ class MenuItemModel extends Model
     ];
     protected $useTimestamps    = false;
 
+    private static bool $isSynced = false;
+
+    public function ensureMenuSynced(): void
+    {
+        if (self::$isSynced) {
+            return;
+        }
+        self::$isSynced = true;
+
+        try {
+            $db = \Config\Database::connect();
+
+            // 1. Ensure Persetujuan SPP / SPM has PERSETUJUAN = 1, VERIFIKASI_1 = 1, VERIFIKASI_2 = 1, ADMIN = 1
+            $db->table($this->table)
+                ->where('NM_ACTION', 'PersetujuanSPMHome')
+                ->set([
+                    'PERSETUJUAN'  => 1,
+                    'VERIFIKASI_1' => 1,
+                    'VERIFIKASI_2' => 1,
+                    'ADMIN'        => 1
+                ])->update();
+
+            // 2. Ensure Persetujuan Pencairan SP2D has PERSETUJUAN = 0 (KBUD does not need this menu because SP2D is transferred to SIPD)
+            $db->table($this->table)
+                ->where('NM_ACTION', 'PersetujuanSP2DHome')
+                ->set([
+                    'PERSETUJUAN'  => 0,
+                    'VERIFIKASI_1' => 0,
+                    'VERIFIKASI_2' => 0,
+                    'ADMIN'        => 1
+                ])->update();
+
+            // 3. Ensure Persetujuan NPD exists under BPKAD (MASTER_MENU = 11)
+            $persetujuanNpd = $db->table($this->table)->where('NM_ACTION', 'PersetujuanNPDHome')->get()->getRowArray();
+            if (!$persetujuanNpd) {
+                $db->table($this->table)->insert([
+                    'NM_MENU'       => 'Persetujuan NPD',
+                    'NM_CONTROLLER' => 'BPKAD',
+                    'NM_ACTION'     => 'PersetujuanNPDHome',
+                    'KD_MENU'       => 1,
+                    'MASTER_MENU'   => 11,
+                    'CHILD'         => 0,
+                    'PENGATURAN'    => 0,
+                    'DASHBOARD'     => 0,
+                    'ICON'          => '',
+                    'ADMIN'         => 1,
+                    'USER'          => 0,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ]);
+            } else {
+                $db->table($this->table)
+                    ->where('NM_ACTION', 'PersetujuanNPDHome')
+                    ->set([
+                        'NM_MENU'       => 'Persetujuan NPD',
+                        'NM_CONTROLLER' => 'BPKAD',
+                        'KD_MENU'       => 1,
+                        'MASTER_MENU'   => 11,
+                        'CHILD'         => 0,
+                        'ADMIN'         => 1,
+                        'VERIFIKASI_1'  => 1,
+                        'VERIFIKASI_2'  => 1,
+                        'PERSETUJUAN'   => 1
+                    ])->update();
+            }
+
+            // 4. Ensure Pengajuan NPD exists under Pengajuan (MASTER_MENU = 10)
+            $pengajuanNpd = $db->table($this->table)->where('NM_ACTION', 'PengajuanNPDHome')->get()->getRowArray();
+            if (!$pengajuanNpd) {
+                $db->table($this->table)->insert([
+                    'NM_MENU'       => 'NPD',
+                    'NM_CONTROLLER' => 'SPM',
+                    'NM_ACTION'     => 'PengajuanNPDHome',
+                    'KD_MENU'       => 1,
+                    'MASTER_MENU'   => 10,
+                    'CHILD'         => 0,
+                    'PENGATURAN'    => 0,
+                    'DASHBOARD'     => 0,
+                    'ICON'          => '',
+                    'ADMIN'         => 1,
+                    'USER'          => 1,
+                    'VERIFIKASI_1'  => 0,
+                    'VERIFIKASI_2'  => 0,
+                    'PERSETUJUAN'   => 0
+                ]);
+            }
+
+            // 5. Ensure BPKAD header (MASTER_MENU = 11, KD_MENU = 11) is visible to PERSETUJUAN
+            $db->table($this->table)
+                ->where('MASTER_MENU', 11)
+                ->where('KD_MENU', 11)
+                ->set([
+                    'PERSETUJUAN'  => 1,
+                    'VERIFIKASI_1' => 1,
+                    'VERIFIKASI_2' => 1,
+                    'ADMIN'        => 1
+                ])->update();
+
+            // 6. Ensure Monitoring SP2D is visible to all verification roles and User
+            $db->table($this->table)
+                ->where('NM_ACTION', 'StatusPengajuanMonitoringHome')
+                ->set([
+                    'USER'         => 1,
+                    'VERIFIKASI_1' => 1,
+                    'VERIFIKASI_2' => 1,
+                    'PERSETUJUAN'  => 1,
+                    'ADMIN'        => 1
+                ])->update();
+        } catch (\Throwable $e) {
+            // Silently ignore if db is not ready
+        }
+    }
+
     public function getHeaderMenu(string $jenisUser)
     {
+        $this->ensureMenuSynced();
+
         $builder = $this->builder();
         $builder->groupStart()
                 ->where('KD_MENU = MASTER_MENU', null, false)
@@ -56,6 +172,8 @@ class MenuItemModel extends Model
 
     public function getItemMenu(string $jenisUser)
     {
+        $this->ensureMenuSynced();
+
         $builder = $this->builder();
         $builder->where('KD_MENU != MASTER_MENU', null, false);
         $builder->whereIn('PENGATURAN', [0, 2]);

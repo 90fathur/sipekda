@@ -146,11 +146,26 @@ class BPKAD extends BaseController
                 return $this->response->setBody('#Data tidak ditemukan.');
             }
 
-            $nextStatus = ($loginData['JENIS_USER'] === 'Verifikasi 1') ? 2 : 3;
-            $this->spmModel->where('ID_PENGAJUAN', $id)->set([
-                'KD_STATUS'      => $nextStatus,
-                'TGL_VEIFIKASI'  => date('Y-m-d H:i:s')
-            ])->update();
+            $userRole = $loginData['JENIS_USER'];
+            if ($userRole === 'Verifikasi 1') {
+                $nextStatus = 2;
+            } elseif ($userRole === 'Verifikasi 2') {
+                $nextStatus = 3;
+            } else {
+                // Persetujuan (KBUD Persetujuan Akhir) or Admin
+                $nextStatus = 4;
+            }
+
+            $updateData = [
+                'KD_STATUS'     => $nextStatus,
+                'TGL_VEIFIKASI' => date('Y-m-d H:i:s')
+            ];
+
+            if ($nextStatus === 4) {
+                $updateData['TGL_SP2D'] = date('Y-m-d H:i:s');
+            }
+
+            $this->spmModel->where('ID_PENGAJUAN', $id)->set($updateData)->update();
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {
@@ -190,11 +205,26 @@ class BPKAD extends BaseController
 
         try {
             $id = $this->request->getPost('id');
-            $nextStatus = ($loginData['JENIS_USER'] === 'Verifikasi 1') ? 2 : 3;
-            $this->npdModel->where('ID_PENGAJUAN', $id)->set([
+            $userRole = $loginData['JENIS_USER'];
+            if ($userRole === 'Verifikasi 1') {
+                $nextStatus = 2;
+            } elseif ($userRole === 'Verifikasi 2') {
+                $nextStatus = 3;
+            } else {
+                // Persetujuan (KBUD Persetujuan Akhir) or Admin
+                $nextStatus = 4;
+            }
+
+            $updateData = [
                 'KD_STATUS'     => $nextStatus,
                 'TGL_VEIFIKASI' => date('Y-m-d H:i:s')
-            ])->update();
+            ];
+
+            if ($nextStatus === 4) {
+                $updateData['TGL_SP2D'] = date('Y-m-d H:i:s');
+            }
+
+            $this->npdModel->where('ID_PENGAJUAN', $id)->set($updateData)->update();
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {

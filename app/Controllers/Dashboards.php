@@ -45,7 +45,7 @@ class Dashboards extends BaseController
 
         $currentYear = date('Y');
         $builder = $this->spmModel->builder();
-        $builder->where('KD_STATUS', 3)
+        $builder->whereIn('KD_STATUS', [3, 4])
                 ->where('YEAR(TGL_PENGAJUAN)', $currentYear);
 
         if (!in_array($loginData['JENIS_USER'], ['Verifikasi 1', 'Verifikasi 2', 'Persetujuan', 'Admin'])) {
@@ -68,7 +68,7 @@ class Dashboards extends BaseController
 
         $builder = $this->spmModel->builder();
         $builder->selectSum('ANGGARAN')
-                ->where('KD_STATUS', 3)
+                ->whereIn('KD_STATUS', [3, 4])
                 ->where('MONTH(TGL_PENGAJUAN)', $currentMonth)
                 ->where('YEAR(TGL_PENGAJUAN)', $currentYear);
 
@@ -93,7 +93,7 @@ class Dashboards extends BaseController
         $currentYear = date('Y');
         $builder = $this->spmModel->builder();
         $builder->selectSum('ANGGARAN')
-                ->where('KD_STATUS', 3)
+                ->whereIn('KD_STATUS', [3, 4])
                 ->where('YEAR(TGL_PENGAJUAN)', $currentYear);
 
         if (!in_array($loginData['JENIS_USER'], ['Verifikasi 1', 'Verifikasi 2', 'Persetujuan', 'Admin'])) {
@@ -110,7 +110,7 @@ class Dashboards extends BaseController
     {
         $db = \Config\Database::connect();
         $totalPagu = (float)($db->table('ms_rekening_belanja')->selectSum('PAGU')->get()->getRow()->PAGU ?? 0);
-        $totalBelanja = (float)($db->table('tb_spm')->selectSum('ANGGARAN')->where('KD_STATUS', 3)->get()->getRow()->ANGGARAN ?? 0);
+        $totalBelanja = (float)($db->table('tb_spm')->selectSum('ANGGARAN')->whereIn('KD_STATUS', [3, 4])->get()->getRow()->ANGGARAN ?? 0);
         $sisaPagu = max(0, $totalPagu - $totalBelanja);
 
         return $this->response->setJSON([
