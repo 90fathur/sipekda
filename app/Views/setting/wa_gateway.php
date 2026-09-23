@@ -25,16 +25,32 @@
                 </div>
                 <div class="ibox-content">
                     <form id="formWaGateway" onsubmit="return saveSetting(event)">
-                        <div class="form-group row">
+                        <div class="form-group row align-items-center">
                             <label class="col-sm-4 col-form-label font-bold">Status Notifikasi</label>
                             <div class="col-sm-8">
-                                <div class="custom-control custom-switch mt-1">
-                                    <input type="checkbox" class="custom-control-input" id="IS_ACTIVE" name="IS_ACTIVE" value="1" <?= ((int)($config['IS_ACTIVE'] ?? 0) === 1) ? 'checked' : '' ?>>
-                                    <label class="custom-control-label font-bold <?= ((int)($config['IS_ACTIVE'] ?? 0) === 1) ? 'text-success' : 'text-danger' ?>" for="IS_ACTIVE" id="lblStatus">
-                                        <?= ((int)($config['IS_ACTIVE'] ?? 0) === 1) ? '<i class="fa fa-check-circle"></i> AKTIF (Notifikasi Otomatis Berjalan)' : '<i class="fa fa-power-off"></i> NONAKTIF' ?>
-                                    </label>
+                                <input type="hidden" name="IS_ACTIVE" id="input_IS_ACTIVE" value="<?= ((int)($config['IS_ACTIVE'] ?? 0) === 1) ? '1' : '0' ?>">
+                                
+                                <div class="d-flex align-items-center" style="gap: 12px; flex-wrap: wrap;">
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn <?= ((int)($config['IS_ACTIVE'] ?? 0) === 1) ? 'btn-primary active font-bold' : 'btn-default' ?>" id="btnStatusActive" onclick="setGatewayStatus(1)">
+                                            <i class="fa fa-check-circle"></i> AKTIF
+                                        </button>
+                                        <button type="button" class="btn <?= ((int)($config['IS_ACTIVE'] ?? 0) === 0) ? 'btn-danger active font-bold' : 'btn-default' ?>" id="btnStatusInactive" onclick="setGatewayStatus(0)">
+                                            <i class="fa fa-power-off"></i> NONAKTIF
+                                        </button>
+                                    </div>
+
+                                    <div id="statusBadgeContainer">
+                                        <?php if ((int)($config['IS_ACTIVE'] ?? 0) === 1): ?>
+                                            <span class="badge badge-primary p-2" style="font-size: 13px;"><i class="fa fa-check-circle"></i> NOTIFIKASI AKTIF BERJALAN</span>
+                                        <?php else: ?>
+                                            <span class="badge badge-danger p-2" style="font-size: 13px;"><i class="fa fa-power-off"></i> NOTIFIKASI NONAKTIF</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                                <small class="form-text text-muted">Jika dinonaktifkan, proses pengajuan dan verifikasi tetap berjalan lancar tanpa mengirimkan WhatsApp.</small>
+                                <small class="form-text text-muted mt-2">
+                                    <i class="fa fa-info-circle text-navy"></i> Klik tombol <strong>AKTIF</strong> untuk mengaktifkan notifikasi bot WA (tersimpan otomatis seketika).
+                                </small>
                             </div>
                         </div>
 
@@ -197,17 +213,36 @@
 <script>
 $(document).ready(function() {
     loadWaLogs();
-
-    $('#IS_ACTIVE').on('change', function() {
-        if ($(this).is(':checked')) {
-            $('#lblStatus').removeClass('text-danger').addClass('text-success')
-                .html('<i class="fa fa-check-circle"></i> AKTIF (Notifikasi Otomatis Berjalan)');
-        } else {
-            $('#lblStatus').removeClass('text-success').addClass('text-danger')
-                .html('<i class="fa fa-power-off"></i> NONAKTIF');
-        }
-    });
 });
+
+function setGatewayStatus(status) {
+    $('#input_IS_ACTIVE').val(status);
+
+    if (status === 1) {
+        $('#btnStatusActive').removeClass('btn-default').addClass('btn-primary active font-bold');
+        $('#btnStatusInactive').removeClass('btn-danger active font-bold').addClass('btn-default');
+        $('#statusBadgeContainer').html('<span class="badge badge-primary p-2" style="font-size: 13px;"><i class="fa fa-check-circle"></i> NOTIFIKASI AKTIF BERJALAN</span>');
+    } else {
+        $('#btnStatusInactive').removeClass('btn-default').addClass('btn-danger active font-bold');
+        $('#btnStatusActive').removeClass('btn-primary active font-bold').addClass('btn-default');
+        $('#statusBadgeContainer').html('<span class="badge badge-danger p-2" style="font-size: 13px;"><i class="fa fa-power-off"></i> NOTIFIKASI NONAKTIF</span>');
+    }
+
+    // Auto-save status instantly to DB so it persists on refresh
+    $.post('<?= base_url('setting/togglestatus') ?>', { IS_ACTIVE: status }, function(res) {
+        if (res.status === 'success') {
+            swal.fire({
+                title: status === 1 ? 'Aktif!' : 'Nonaktif',
+                text: res.message,
+                icon: status === 1 ? 'success' : 'info',
+                timer: 1800,
+                showConfirmButton: false
+            });
+        }
+    }).fail(function() {
+        swal.fire('Peringatan', 'Gagal menyimpan status ke server.', 'error');
+    });
+}
 
 function toggleApiKey() {
     var input = document.getElementById('API_KEY');

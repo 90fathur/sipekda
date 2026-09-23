@@ -137,6 +137,7 @@ $routes->group('monitoring', ['filter' => 'auth'], function ($routes) {
 $routes->group('setting', ['filter' => 'auth:Admin'], function ($routes) {
     $routes->get('wagatewayhome', 'Setting::waGatewayHome');
     $routes->post('savewagateway', 'Setting::saveWaGateway');
+    $routes->post('togglestatus', 'Setting::toggleStatus');
     $routes->post('testsendwa', 'Setting::testSendWa');
     $routes->get('getwalogs', 'Setting::getWaLogs');
 });

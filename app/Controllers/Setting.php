@@ -39,7 +39,8 @@ class Setting extends BaseController
     public function saveWaGateway()
     {
         $request = $this->request;
-        $isActive = $request->getPost('IS_ACTIVE') ? 1 : 0;
+        $rawActive = $request->getPost('IS_ACTIVE');
+        $isActive = ($rawActive === '1' || $rawActive === 1 || $rawActive === true || $rawActive === 'true' || $rawActive === 'on') ? 1 : 0;
         $provider = trim($request->getPost('PROVIDER') ?? 'cloudchat');
         $apiKey = trim($request->getPost('API_KEY') ?? '');
         $senderNumber = trim($request->getPost('SENDER_NUMBER') ?? '');
@@ -56,6 +57,8 @@ class Setting extends BaseController
             }
         }
 
+        $db = \Config\Database::connect();
+        $this->waModel->ensureSchema();
         $existing = $this->waModel->first();
         $data = [
             'IS_ACTIVE'     => $isActive,
@@ -67,14 +70,46 @@ class Setting extends BaseController
         ];
 
         if ($existing) {
-            $this->waModel->update($existing['ID_SETTING'], $data);
+            $db->table('tb_wa_gateway')->where('ID_SETTING', $existing['ID_SETTING'])->update($data);
         } else {
-            $this->waModel->insert($data);
+            $db->table('tb_wa_gateway')->insert($data);
         }
 
         return $this->response->setJSON([
-            'status'  => 'success',
-            'message' => 'Pengaturan WhatsApp Gateway berhasil disimpan!'
+            'status'    => 'success',
+            'is_active' => $isActive,
+            'message'   => 'Pengaturan WhatsApp Gateway berhasil disimpan!'
+        ]);
+    }
+
+    public function toggleStatus()
+    {
+        $isActive = $this->request->getPost('IS_ACTIVE');
+        $statusInt = ($isActive === '1' || $isActive === 1 || $isActive === true || $isActive === 'true' || $isActive === 'on') ? 1 : 0;
+
+        $db = \Config\Database::connect();
+        $this->waModel->ensureSchema();
+        $existing = $this->waModel->first();
+
+        if ($existing) {
+            $db->table('tb_wa_gateway')->where('ID_SETTING', $existing['ID_SETTING'])->update([
+                'IS_ACTIVE'  => $statusInt,
+                'UPDATED_AT' => date('Y-m-d H:i:s')
+            ]);
+        } else {
+            $db->table('tb_wa_gateway')->insert([
+                'IS_ACTIVE'     => $statusInt,
+                'PROVIDER'      => 'cloudchat',
+                'API_KEY'       => '',
+                'ENDPOINT_URL'  => 'https://app.cloudchat.id/api/public/v1/messages',
+                'UPDATED_AT'    => date('Y-m-d H:i:s')
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'status'    => 'success',
+            'is_active' => $statusInt,
+            'message'   => $statusInt ? 'WhatsApp Gateway berhasil DIAKTIFKAN!' : 'WhatsApp Gateway telah DINONAKTIFKAN.'
         ]);
     }
 
