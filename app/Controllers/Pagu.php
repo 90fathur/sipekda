@@ -65,7 +65,10 @@ class Pagu extends BaseController
             $builder->where('KD_SKPD', $kdSkpdParam);
         }
 
-        $list = $builder->orderBy('KD_SKPD', 'ASC')->orderBy('KD_REKENING_BELANJA', 'ASC')->get()->getResultArray();
+        $list = $builder->orderBy('KD_SKPD', 'ASC')
+            ->orderBy('LENGTH(KD_REKENING_BELANJA)', 'ASC')
+            ->orderBy('KD_REKENING_BELANJA', 'ASC')
+            ->get()->getResultArray();
         $currentYear = date('Y');
 
         $db = \Config\Database::connect();
@@ -319,7 +322,42 @@ class Pagu extends BaseController
                             ->where('ID_REKENING_BELANJA', $existing['ID_REKENING_BELANJA'])
                             ->update($updateData);
                     } else {
-                        $db->table('ms_rekening_belanja')->insert($item);
+                        // Check if an existing record has the same NM_REKENING_BELANJA with legacy dummy code
+                        $byNameBuilder = $db->table('ms_rekening_belanja')
+                            ->where('NM_REKENING_BELANJA', $item['NM_REKENING_BELANJA']);
+                        if (!empty($item['KD_SKPD'])) {
+                            $byNameBuilder->groupStart()
+                                ->where('KD_SKPD', $item['KD_SKPD'])
+                                ->orWhere('KD_SKPD IS NULL', null, false)
+                                ->groupEnd();
+                        }
+                        $existingByName = $byNameBuilder->get()->getRowArray();
+
+                        if ($existingByName && (!str_contains($existingByName['KD_REKENING_BELANJA'] ?? '', '.') || empty($existingByName['KD_SKPD']))) {
+                            $oldCode = $existingByName['KD_REKENING_BELANJA'];
+                            $updateData = [
+                                'KD_REKENING_BELANJA' => $item['KD_REKENING_BELANJA'],
+                                'PAGU'                => $item['PAGU']
+                            ];
+                            if (!empty($item['KD_SKPD'])) {
+                                $updateData['KD_SKPD'] = $item['KD_SKPD'];
+                            }
+                            if (!empty($item['NM_SKPD'])) {
+                                $updateData['NM_SKPD'] = $item['NM_SKPD'];
+                            }
+                            $db->table('ms_rekening_belanja')
+                                ->where('ID_REKENING_BELANJA', $existingByName['ID_REKENING_BELANJA'])
+                                ->update($updateData);
+
+                            // Sync past tb_data_detail references if any
+                            if (!empty($oldCode)) {
+                                $db->table('tb_data_detail')
+                                    ->where('KD_REKENING_BELANJA', $oldCode)
+                                    ->update(['KD_REKENING_BELANJA' => $item['KD_REKENING_BELANJA']]);
+                            }
+                        } else {
+                            $db->table('ms_rekening_belanja')->insert($item);
+                        }
                     }
                 }
             }

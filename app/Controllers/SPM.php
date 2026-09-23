@@ -299,9 +299,9 @@ class SPM extends BaseController
         $table = $isNPD ? 'tb_npd' : 'tb_spm';
 
         $builder = $db->table($table . ' spm')
-            ->select('spm.ID_PENGAJUAN, spm.TGL_PENGAJUAN, skpd.NM_SKPD as KD_SKPD, spm.NM_PROGRAM_KEGIATAN_SUBKEGIATAN, blanja.KD_MATA_ANGGARAN as KD_REKENING_BELANJA, spm.ANGGARAN, blanja.NM_MATA_ANGGARAN as NM_REKENING_BELANJA, spm.KD_STATUS, spm.ALASAN_PENOLAKAN')
+            ->select('spm.ID_PENGAJUAN, spm.TGL_PENGAJUAN, skpd.NM_SKPD as KD_SKPD, spm.NM_PROGRAM_KEGIATAN_SUBKEGIATAN, COALESCE(blanja.KD_REKENING_BELANJA, spm.KD_REKENING_BELANJA) as KD_REKENING_BELANJA, spm.ANGGARAN, COALESCE(blanja.NM_REKENING_BELANJA, spm.KD_REKENING_BELANJA) as NM_REKENING_BELANJA, spm.KD_STATUS, spm.ALASAN_PENOLAKAN')
             ->join('ms_skpd skpd', 'spm.KD_SKPD = skpd.KD_SKPD', 'left')
-            ->join('ms_mata_anggaran blanja', 'spm.KD_REKENING_BELANJA = blanja.KD_MATA_ANGGARAN', 'left');
+            ->join('ms_rekening_belanja blanja', 'spm.KD_REKENING_BELANJA = blanja.KD_REKENING_BELANJA', 'left');
 
         $jenisUser = $loginData['JENIS_USER'];
         $isVerifikator = in_array($jenisUser, ['Verifikasi 1', 'Verifikasi 2']);
@@ -342,9 +342,9 @@ class SPM extends BaseController
         $table = $isNPD ? 'tb_npd' : 'tb_spm';
 
         $list = $db->table($table . ' spm')
-            ->select('spm.ID_PENGAJUAN, spm.TGL_PENGAJUAN, skpd.NM_SKPD as KD_SKPD, spm.NM_PROGRAM_KEGIATAN_SUBKEGIATAN, blanja.KD_MATA_ANGGARAN as KD_REKENING_BELANJA, spm.ANGGARAN, blanja.NM_MATA_ANGGARAN as NM_REKENING_BELANJA, spm.KD_STATUS')
+            ->select('spm.ID_PENGAJUAN, spm.TGL_PENGAJUAN, skpd.NM_SKPD as KD_SKPD, spm.NM_PROGRAM_KEGIATAN_SUBKEGIATAN, COALESCE(blanja.KD_REKENING_BELANJA, spm.KD_REKENING_BELANJA) as KD_REKENING_BELANJA, spm.ANGGARAN, COALESCE(blanja.NM_REKENING_BELANJA, spm.KD_REKENING_BELANJA) as NM_REKENING_BELANJA, spm.KD_STATUS')
             ->join('ms_skpd skpd', 'spm.KD_SKPD = skpd.KD_SKPD', 'left')
-            ->join('ms_mata_anggaran blanja', 'spm.KD_REKENING_BELANJA = blanja.KD_MATA_ANGGARAN', 'left')
+            ->join('ms_rekening_belanja blanja', 'spm.KD_REKENING_BELANJA = blanja.KD_REKENING_BELANJA', 'left')
             ->whereNotIn('spm.KD_STATUS', [3, 4, 5])
             ->orderBy('spm.TGL_PENGAJUAN', 'DESC')
             ->get()

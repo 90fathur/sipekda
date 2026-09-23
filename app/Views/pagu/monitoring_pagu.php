@@ -105,6 +105,7 @@
                 { extend: 'pdf', title: 'Pagu_Anggaran', orientation: 'landscape', pageSize: 'A4', className: 'btn-sm btn-danger' },
                 { extend: 'print', className: 'btn-sm btn-white' }
             ],
+            order: [],
             columns: [
                 {
                     data: null, className: 'text-center', width: '4%', render: function (data, type, row, meta) {
