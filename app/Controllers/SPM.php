@@ -616,14 +616,41 @@ class SPM extends BaseController
     {
         $loginData = $this->getLoginData();
         $builder = $this->rekeningModel->builder();
+        $db = \Config\Database::connect();
         if ($loginData && $loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {
-            $builder->groupStart()
-                ->where('KD_SKPD', $loginData['KD_UNITKER'])
-                ->orWhere('KD_SKPD IS NULL', null, false)
-                ->orWhere('KD_SKPD', '')
+            $targetUnit = $loginData['KD_UNITKER'];
+            $shortPrefix = preg_replace('/(\.0000)+$/', '', $targetUnit);
+            $skpdRow = $db->table('ms_skpd')->where('KD_SKPD', $targetUnit)->get()->getRowArray();
+            $nmUnit = $skpdRow['NM_SKPD'] ?? ($loginData['NM_UNITKER'] ?? '');
+
+            $hasRealForUser = $db->table('ms_rekening_belanja')
+                ->groupStart()
+                    ->where('KD_SKPD', $targetUnit)
+                    ->orLike('KD_SKPD', $shortPrefix, 'after')
+                    ->orWhere('NM_SKPD', $nmUnit)
+                ->groupEnd()
+                ->countAllResults() > 0;
+
+            if ($hasRealForUser) {
+                $builder->groupStart()
+                    ->where('KD_SKPD', $targetUnit)
+                    ->orLike('KD_SKPD', $shortPrefix, 'after');
+                if (!empty($nmUnit)) {
+                    $builder->orWhere('NM_SKPD', $nmUnit);
+                }
+                $builder->groupEnd();
+            } else {
+                $builder->groupStart()
+                    ->where('KD_SKPD', $targetUnit)
+                    ->orWhere('KD_SKPD IS NULL', null, false)
+                    ->orWhere('KD_SKPD', '')
                 ->groupEnd();
+            }
         }
-        $rekeningList = $builder->orderBy('KD_REKENING_BELANJA', 'ASC')->get()->getResultArray();
+
+        $rekeningList = $builder->orderBy("(CASE WHEN KD_REKENING_BELANJA LIKE '5.%' THEN 0 ELSE 1 END)", 'ASC')
+            ->orderBy('KD_REKENING_BELANJA', 'ASC')
+            ->get()->getResultArray();
         $currentYear = date('Y');
 
         $db = \Config\Database::connect();

@@ -54,19 +54,48 @@ class Pagu extends BaseController
             return $this->response->setJSON([]);
         }
 
+        $db = \Config\Database::connect();
         $kdSkpdParam = $this->request->getGet('KD_SKPD');
 
         $builder = $this->rekeningModel->builder();
 
-        // If user is OPD ('User'), lock to their own KD_UNITKER
-        if ($loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {
-            $builder->where('KD_SKPD', $loginData['KD_UNITKER']);
-        } elseif (!empty($kdSkpdParam)) {
-            $builder->where('KD_SKPD', $kdSkpdParam);
+        // Check if real SIPD data exists in ms_rekening_belanja (e.g. codes starting with 5. or has KD_SKPD)
+        $hasRealData = $db->table('ms_rekening_belanja')
+            ->groupStart()
+                ->where('KD_SKPD IS NOT NULL', null, false)
+                ->orLike('KD_REKENING_BELANJA', '5.', 'after')
+            ->groupEnd()
+            ->countAllResults() > 0;
+
+        if ($hasRealData) {
+            // Exclude legacy dummy placeholder rows where KD_SKPD is NULL and KD_REKENING_BELANJA is a pure sequential integer
+            $builder->groupStart()
+                ->where('KD_SKPD IS NOT NULL', null, false)
+                ->orLike('KD_REKENING_BELANJA', '5.', 'after')
+            ->groupEnd();
         }
 
-        $list = $builder->orderBy('KD_SKPD', 'ASC')
-            ->orderBy('LENGTH(KD_REKENING_BELANJA)', 'ASC')
+        // Target SKPD: locked for OPD 'User', or from dropdown parameter
+        $targetSkpd = ($loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER']))
+            ? $loginData['KD_UNITKER']
+            : $kdSkpdParam;
+
+        if (!empty($targetSkpd)) {
+            $skpdRow = $db->table('ms_skpd')->where('KD_SKPD', $targetSkpd)->get()->getRowArray();
+            $nmSkpdParam = $skpdRow['NM_SKPD'] ?? '';
+            $shortPrefix = preg_replace('/(\.0000)+$/', '', $targetSkpd);
+
+            $builder->groupStart()
+                ->where('KD_SKPD', $targetSkpd)
+                ->orLike('KD_SKPD', $shortPrefix, 'after');
+            if (!empty($nmSkpdParam)) {
+                $builder->orWhere('NM_SKPD', $nmSkpdParam);
+            }
+            $builder->groupEnd();
+        }
+
+        $list = $builder->orderBy("(CASE WHEN KD_REKENING_BELANJA LIKE '5.%' THEN 0 ELSE 1 END)", 'ASC')
+            ->orderBy('KD_SKPD', 'ASC')
             ->orderBy('KD_REKENING_BELANJA', 'ASC')
             ->get()->getResultArray();
         $currentYear = date('Y');
