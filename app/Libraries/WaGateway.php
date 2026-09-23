@@ -56,8 +56,19 @@ class WaGateway
         $endpoint = trim((string)($config['ENDPOINT_URL'] ?? ''));
 
         if ($isActive !== 1 || empty($apiKey)) {
-            // Gateway is disabled or not configured; skip sending silently without blocking
-            return ['status' => 'disabled', 'message' => 'WhatsApp gateway dinonaktifkan atau belum disetting.'];
+            $reason = ($isActive !== 1) ? 'WhatsApp Gateway sedang NONAKTIF di menu Pengaturan.' : 'API Key WhatsApp Gateway belum diisi di menu Pengaturan.';
+            try {
+                $db = \Config\Database::connect();
+                $db->table('tb_wa_logs')->insert([
+                    'NO_TUJUAN'      => $target,
+                    'NAMA_PENERIMA'  => $recipientName,
+                    'PESAN'          => $message,
+                    'STATUS'         => 'FAILED',
+                    'RESPON_GATEWAY' => $reason,
+                    'CREATED_AT'     => date('Y-m-d H:i:s')
+                ]);
+            } catch (\Throwable $e) {}
+            return ['status' => 'disabled', 'message' => $reason];
         }
 
         $status = 'FAILED';
@@ -199,7 +210,7 @@ class WaGateway
 
         // For Verifikasi 1, check assigned SKPD if applicable
         if ($roleName === 'Verifikasi 1' && !empty($kdSkpd)) {
-            $assigned = $db->table('tb_user_roles r')
+            $assigned = $db->table('tb_user_role r')
                 ->select('u.ID_USER, u.NAMA_LENGKAP, u.NO_HP')
                 ->join('tb_users u', 'r.USERNAME = u.USER_NAME', 'inner')
                 ->where('r.KD_SKPD', $kdSkpd)
@@ -226,6 +237,20 @@ class WaGateway
                 ->getResultArray();
         }
 
+        if (empty($targetUsers)) {
+            // Log informative message to tb_wa_logs
+            try {
+                $db->table('tb_wa_logs')->insert([
+                    'NO_TUJUAN'      => '-',
+                    'NAMA_PENERIMA'  => $roleName . ' (' . ($kdSkpd ?? 'Semua') . ')',
+                    'PESAN'          => $message,
+                    'STATUS'         => 'FAILED',
+                    'RESPON_GATEWAY' => "Peringatan: Tidak ada akun {$roleName} dengan Nomor HP terdaftar di Manajemen User.",
+                    'CREATED_AT'     => date('Y-m-d H:i:s')
+                ]);
+            } catch (\Throwable $e) {}
+        }
+
         $sentCount = 0;
         foreach ($targetUsers as $user) {
             $phone = $user['NO_HP'] ?? '';
@@ -249,12 +274,25 @@ class WaGateway
         $users = $db->table('tb_users')
             ->select('ID_USER, NAMA_LENGKAP, NO_HP')
             ->where('KD_UNITKER', $kdSkpd)
-            ->where('JENIS_USER', 'User')
             ->where('AKTIF', 1)
             ->where('NO_HP IS NOT NULL', null, false)
             ->where('NO_HP !=', '')
             ->get()
             ->getResultArray();
+
+        if (empty($users)) {
+            // Log informative message to tb_wa_logs
+            try {
+                $db->table('tb_wa_logs')->insert([
+                    'NO_TUJUAN'      => '-',
+                    'NAMA_PENERIMA'  => 'Admin OPD (' . $kdSkpd . ')',
+                    'PESAN'          => $message,
+                    'STATUS'         => 'FAILED',
+                    'RESPON_GATEWAY' => "Peringatan: Tidak ada akun Admin OPD (KD: {$kdSkpd}) dengan Nomor HP terdaftar di Manajemen User.",
+                    'CREATED_AT'     => date('Y-m-d H:i:s')
+                ]);
+            } catch (\Throwable $e) {}
+        }
 
         $sentCount = 0;
         foreach ($users as $u) {
@@ -271,14 +309,15 @@ class WaGateway
     }
 
     /**
-     * Trigger 1: OPD submits new NPD / SPM -> Notifies Verifikasi 1
+     * Trigger 1: OPD submits new NPD / SPM -> Notifies Verifikasi 1 and sends receipt to OPD
      */
     public function notifyNewSubmission(string $type, string $idPengajuan, string $nmSkpd, string $kegiatan, float $anggaran, string $kdSkpd): void
     {
         $formattedNominal = 'Rp ' . number_format($anggaran, 2, ',', '.');
         $date = date('d-m-Y H:i');
 
-        $message = "🔔 *NOTIFIKASI SIPEKDA POLMAN*\n"
+        // 1. Notifikasi tugas ke Verifikator 1
+        $messageVerif = "🔔 *NOTIFIKASI SIPEKDA POLMAN*\n"
             . "Halo Bapak/Ibu *Verifikator 1*,\n\n"
             . "Terdapat pengajuan baru yang membutuhkan verifikasi Anda:\n"
             . "• *Jenis*: " . strtoupper($type) . "\n"
@@ -289,7 +328,21 @@ class WaGateway
             . "• *Waktu*: {$date} WITA\n\n"
             . "Silakan login ke SIPEKDA untuk memeriksa dokumen pengajuan. Terima kasih.";
 
-        $this->sendToRole('Verifikasi 1', $message, $kdSkpd);
+        $this->sendToRole('Verifikasi 1', $messageVerif, $kdSkpd);
+
+        // 2. Notifikasi konfirmasi tanda terima ke Admin OPD pengirim
+        $messageOpd = "📤 *PENGIRIMAN PENGAJUAN BERHASIL - SIPEKDA*\n"
+            . "Halo Rekan Pengelola Keuangan *{$nmSkpd}*,\n\n"
+            . "Pengajuan Anda telah berhasil dikirim ke BPKAD dan sedang menunggu antrean *Verifikasi 1*:\n"
+            . "• *Jenis*: " . strtoupper($type) . "\n"
+            . "• *No. Pengajuan*: {$idPengajuan}\n"
+            . "• *Kegiatan*: {$kegiatan}\n"
+            . "• *Nilai*: {$formattedNominal}\n"
+            . "• *Status*: Menunggu Verifikasi 1\n"
+            . "• *Waktu*: {$date} WITA\n\n"
+            . "Anda akan menerima notifikasi WhatsApp kembali saat pengajuan diverifikasi/disetujui. Terima kasih.";
+
+        $this->sendToOpd($kdSkpd, $messageOpd);
     }
 
     /**
