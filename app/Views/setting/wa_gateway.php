@@ -44,11 +44,13 @@
                             <label class="col-sm-4 col-form-label font-bold">Penyedia Gateway (Provider) <span class="text-danger">*</span></label>
                             <div class="col-sm-8">
                                 <select name="PROVIDER" id="PROVIDER" class="form-control" onchange="handleProviderChange()">
-                                    <option value="fonnte" <?= (($config['PROVIDER'] ?? '') === 'fonnte') ? 'selected' : '' ?>>Fonnte (Rekomendasi - Mudah & Cepat)</option>
+                                    <option value="cloudchat" <?= (($config['PROVIDER'] ?? '') === 'cloudchat' || empty($config['PROVIDER'])) ? 'selected' : '' ?>>Chatbot.id / CloudChat (Rekomendasi - app.cloudchat.id)</option>
+                                    <option value="fonnte" <?= (($config['PROVIDER'] ?? '') === 'fonnte') ? 'selected' : '' ?>>Fonnte</option>
                                     <option value="wablas" <?= (($config['PROVIDER'] ?? '') === 'wablas') ? 'selected' : '' ?>>Wablas</option>
                                     <option value="starsender" <?= (($config['PROVIDER'] ?? '') === 'starsender') ? 'selected' : '' ?>>Starsender</option>
                                     <option value="custom" <?= (($config['PROVIDER'] ?? '') === 'custom') ? 'selected' : '' ?>>Custom API Endpoint</option>
                                 </select>
+                                <small class="form-text text-muted">Menggunakan CloudChat Unified API: <a href="https://app.cloudchat.id/developer/docs" target="_blank" class="text-navy font-bold"><i class="fa fa-external-link"></i> https://app.cloudchat.id/developer/docs</a></small>
                             </div>
                         </div>
 
@@ -56,20 +58,20 @@
                             <label class="col-sm-4 col-form-label font-bold">API Key / Token <span class="text-danger">*</span></label>
                             <div class="col-sm-8">
                                 <div class="input-group">
-                                    <input type="password" name="API_KEY" id="API_KEY" class="form-control" value="<?= esc($config['API_KEY'] ?? '') ?>" placeholder="Masukkan API Key / Token Gateway" required>
+                                    <input type="password" name="API_KEY" id="API_KEY" class="form-control" value="<?= esc($config['API_KEY'] ?? '') ?>" placeholder="Masukkan API Key dari menu Developer CloudChat" required>
                                     <div class="input-group-append">
                                         <button class="btn btn-outline-secondary" type="button" onclick="toggleApiKey()"><i class="fa fa-eye" id="eyeIcon"></i></button>
                                     </div>
                                 </div>
-                                <small class="form-text text-muted">Token API yang didapatkan dari dashboard provider WhatsApp Anda.</small>
+                                <small class="form-text text-muted">API Key didapatkan dari menu <strong>Developer / API Key</strong> di dashboard <code>app.cloudchat.id</code>.</small>
                             </div>
                         </div>
 
                         <div class="form-group row" id="groupEndpoint">
                             <label class="col-sm-4 col-form-label font-bold">URL Endpoint API</label>
                             <div class="col-sm-8">
-                                <input type="text" name="ENDPOINT_URL" id="ENDPOINT_URL" class="form-control" value="<?= esc($config['ENDPOINT_URL'] ?? 'https://api.fonnte.com/send') ?>" placeholder="https://api.fonnte.com/send">
-                                <small class="form-text text-muted">Endpoint pengiriman pesan API provider (default Fonnte: <code>https://api.fonnte.com/send</code>).</small>
+                                <input type="text" name="ENDPOINT_URL" id="ENDPOINT_URL" class="form-control" value="<?= esc($config['ENDPOINT_URL'] ?? 'https://app.cloudchat.id/api/public/v1/messages') ?>" placeholder="https://app.cloudchat.id/api/public/v1/messages">
+                                <small class="form-text text-muted">Endpoint pengiriman pesan API (default Chatbot.id: <code>https://app.cloudchat.id/api/public/v1/messages</code>).</small>
                             </div>
                         </div>
 
@@ -221,14 +223,14 @@ function toggleApiKey() {
 
 function handleProviderChange() {
     var provider = $('#PROVIDER').val();
-    if (provider === 'fonnte') {
+    if (provider === 'cloudchat') {
+        $('#ENDPOINT_URL').val('https://app.cloudchat.id/api/public/v1/messages');
+    } else if (provider === 'fonnte') {
         $('#ENDPOINT_URL').val('https://api.fonnte.com/send');
     } else if (provider === 'starsender') {
         $('#ENDPOINT_URL').val('https://starsender.online/api/sendText');
     } else if (provider === 'wablas') {
-        if ($('#ENDPOINT_URL').val().includes('fonnte') || $('#ENDPOINT_URL').val().includes('starsender')) {
-            $('#ENDPOINT_URL').val('https://phone.wablas.com');
-        }
+        $('#ENDPOINT_URL').val('https://phone.wablas.com');
     }
 }
 

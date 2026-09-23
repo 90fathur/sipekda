@@ -40,14 +40,16 @@ class Setting extends BaseController
     {
         $request = $this->request;
         $isActive = $request->getPost('IS_ACTIVE') ? 1 : 0;
-        $provider = trim($request->getPost('PROVIDER') ?? 'fonnte');
+        $provider = trim($request->getPost('PROVIDER') ?? 'cloudchat');
         $apiKey = trim($request->getPost('API_KEY') ?? '');
         $senderNumber = trim($request->getPost('SENDER_NUMBER') ?? '');
         $endpointUrl = trim($request->getPost('ENDPOINT_URL') ?? '');
 
         // Default endpoint fallback based on provider
         if (empty($endpointUrl)) {
-            if ($provider === 'fonnte') {
+            if ($provider === 'cloudchat' || $provider === 'chatbot') {
+                $endpointUrl = 'https://app.cloudchat.id/api/public/v1/messages';
+            } elseif ($provider === 'fonnte') {
                 $endpointUrl = 'https://api.fonnte.com/send';
             } elseif ($provider === 'starsender') {
                 $endpointUrl = 'https://starsender.online/api/sendText';

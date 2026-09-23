@@ -52,7 +52,7 @@ class WaGateway
         $config = $this->model->getConfig();
         $isActive = (int)($config['IS_ACTIVE'] ?? 0);
         $apiKey = trim((string)($config['API_KEY'] ?? ''));
-        $provider = strtolower(trim((string)($config['PROVIDER'] ?? 'fonnte')));
+        $provider = strtolower(trim((string)($config['PROVIDER'] ?? 'cloudchat')));
         $endpoint = trim((string)($config['ENDPOINT_URL'] ?? ''));
 
         if ($isActive !== 1 || empty($apiKey)) {
@@ -71,7 +71,27 @@ class WaGateway
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 
-            if ($provider === 'fonnte') {
+            if ($provider === 'cloudchat' || $provider === 'chatbot' || $provider === 'chatbot_id') {
+                // CloudChat / Chatbot.id Developer API (https://app.cloudchat.id/developer/docs)
+                $url = !empty($endpoint) ? $endpoint : 'https://app.cloudchat.id/api/public/v1/messages';
+                $bearer = str_starts_with($apiKey, 'Bearer ') ? $apiKey : 'Bearer ' . $apiKey;
+
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                    'channel' => 'whatsapp',
+                    'type'    => 'text',
+                    'to'      => $target,
+                    'content' => [
+                        'text' => $message
+                    ]
+                ]));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Authorization: ' . $bearer,
+                    'Content-Type: application/json',
+                    'Accept: application/json'
+                ]);
+            } elseif ($provider === 'fonnte') {
                 $url = !empty($endpoint) ? $endpoint : 'https://api.fonnte.com/send';
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_POST, true);
@@ -107,17 +127,21 @@ class WaGateway
                 ]);
             } else {
                 // Custom generic endpoint
-                $url = !empty($endpoint) ? $endpoint : 'https://api.fonnte.com/send';
+                $url = !empty($endpoint) ? $endpoint : 'https://app.cloudchat.id/api/public/v1/messages';
+                $bearer = str_starts_with($apiKey, 'Bearer ') ? $apiKey : 'Bearer ' . $apiKey;
                 curl_setopt($ch, CURLOPT_URL, $url);
                 curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, [
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                    'channel' => 'whatsapp',
+                    'to'      => $target,
                     'target'  => $target,
-                    'phone'   => $target,
                     'message' => $message,
-                    'token'   => $apiKey
-                ]);
+                    'content' => ['text' => $message]
+                ]));
                 curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Authorization: ' . $apiKey
+                    'Authorization: ' . $bearer,
+                    'Content-Type: application/json',
+                    'Accept: application/json'
                 ]);
             }
 
@@ -127,7 +151,12 @@ class WaGateway
             curl_close($ch);
 
             if ($httpCode >= 200 && $httpCode < 300) {
-                $status = 'SENT';
+                $json = json_decode($responseBody, true);
+                if (is_array($json) && isset($json['success']) && $json['success'] === false) {
+                    $status = 'FAILED';
+                } else {
+                    $status = 'SENT';
+                }
             } else {
                 $status = 'FAILED';
                 if ($curlError) {

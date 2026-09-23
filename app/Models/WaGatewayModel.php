@@ -56,7 +56,7 @@ class WaGatewayModel extends Model
                     'PROVIDER' => [
                         'type'       => 'VARCHAR',
                         'constraint' => 50,
-                        'default'    => 'fonnte'
+                        'default'    => 'cloudchat'
                     ],
                     'API_KEY' => [
                         'type'       => 'VARCHAR',
@@ -84,9 +84,9 @@ class WaGatewayModel extends Model
                 // Insert default initial row
                 $db->table('tb_wa_gateway')->insert([
                     'IS_ACTIVE'    => 0,
-                    'PROVIDER'     => 'fonnte',
+                    'PROVIDER'     => 'cloudchat',
                     'API_KEY'      => '',
-                    'ENDPOINT_URL' => 'https://api.fonnte.com/send',
+                    'ENDPOINT_URL' => 'https://app.cloudchat.id/api/public/v1/messages',
                     'UPDATED_AT'   => date('Y-m-d H:i:s')
                 ]);
             }
@@ -140,12 +140,23 @@ class WaGatewayModel extends Model
         if (!$config) {
             return [
                 'IS_ACTIVE'     => 0,
-                'PROVIDER'      => 'fonnte',
+                'PROVIDER'      => 'cloudchat',
                 'API_KEY'       => '',
                 'SENDER_NUMBER' => '',
-                'ENDPOINT_URL'  => 'https://api.fonnte.com/send'
+                'ENDPOINT_URL'  => 'https://app.cloudchat.id/api/public/v1/messages'
             ];
         }
+
+        // Auto-migrate previous default fonnte to cloudchat (Chatbot.id) if api key is not yet set
+        if (empty($config['API_KEY']) && ($config['PROVIDER'] === 'fonnte' || empty($config['PROVIDER']))) {
+            $this->update($config['ID_SETTING'], [
+                'PROVIDER'     => 'cloudchat',
+                'ENDPOINT_URL' => 'https://app.cloudchat.id/api/public/v1/messages'
+            ]);
+            $config['PROVIDER'] = 'cloudchat';
+            $config['ENDPOINT_URL'] = 'https://app.cloudchat.id/api/public/v1/messages';
+        }
+
         return $config;
     }
 }
