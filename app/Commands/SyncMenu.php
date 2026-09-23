@@ -18,11 +18,15 @@ class SyncMenu extends BaseCommand
 
     public function run(array $params)
     {
-        CLI::write('Synchronizing tb_menu_items...', 'yellow');
+        CLI::write('Synchronizing tb_menu_items & ms_rekening_belanja...', 'yellow');
         try {
-            $model = new \App\Models\MenuItemModel();
-            $model->ensureMenuSynced();
-            CLI::write('Menu synchronized successfully for KBUD, Verifikator, and Admin!', 'green');
+            $menuModel = new \App\Models\MenuItemModel();
+            $menuModel->ensureMenuSynced();
+
+            $rekModel = new \App\Models\RekeningBelanjaModel();
+            $rekModel->ensureSchema();
+
+            CLI::write('Menu and database schema synchronized successfully!', 'green');
         } catch (\Throwable $e) {
             CLI::error('Error: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
         }

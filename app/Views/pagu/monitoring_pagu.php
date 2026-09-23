@@ -6,7 +6,18 @@
         <div class="col-md-12">
             <div class="ibox">
                 <div class="ibox-title">
-                    <div class="float-right">
+                    <div class="float-right d-flex align-items-center" style="gap: 8px;">
+                        <?php if ($JENIS_USER !== 'User'): ?>
+                            <select id="filterSKPD" class="form-control input-sm select2" style="width: 250px; display: inline-block;" onchange="LoadDataList();">
+                                <option value="">-- Semua OPD / SKPD --</option>
+                                <?php foreach ($ListSKPD as $skpd): ?>
+                                    <option value="<?= esc($skpd['KD_SKPD']) ?>"><?= esc($skpd['NM_SKPD']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php else: ?>
+                            <span class="badge badge-primary p-2" style="font-size: 12px; margin-right: 6px;"><i class="fa fa-building-o"></i> <?= esc($NM_UNITKER) ?></span>
+                        <?php endif; ?>
+
                         <label class="btn btn-primary" for="eFILE" style="margin-bottom: 0;">
                             <i class="fa fa-upload"></i> Upload File Excel
                         </label>
@@ -51,8 +62,19 @@
 <?= $this->section('scripts') ?>
 <script type="text/javascript">
     $(document).ready(function () {
+        if ($('#filterSKPD').length) {
+            $('#filterSKPD').select2({ theme: 'bootstrap4', placeholder: '-- Semua OPD / SKPD --', allowClear: true });
+            $('#filterSKPD').on('change', function () {
+                LoadDataList();
+            });
+        }
         LoadDataList();
     });
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
     function formatRupiah(val) {
         return 'Rp ' + parseFloat(val || 0).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -67,7 +89,13 @@
             ajax: {
                 url: '<?= base_url('pagu/getpaguanggaran') ?>',
                 dataSrc: '',
-                type: 'GET'
+                type: 'GET',
+                data: function(d) {
+                    var skpd = $('#filterSKPD').val();
+                    if (skpd) {
+                        d.KD_SKPD = skpd;
+                    }
+                }
             },
             dom: "<'row mb-2'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>><'row'<'col-sm-12'tr>><'row mt-3'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
             buttons: [
@@ -91,7 +119,17 @@
                         return '<span class="badge badge-info" style="font-size: 11px; font-family: monospace;">' + (d || '-') + '</span>';
                     }
                 },
-                { data: 'NM_REKENING_BELANJA', className: 'text-left font-bold' },
+                {
+                    data: 'NM_REKENING_BELANJA',
+                    className: 'text-left font-bold',
+                    render: function(data, type, row) {
+                        var html = '<div>' + escHtml(data) + '</div>';
+                        if (row.NM_SKPD) {
+                            html += '<div style="margin-top: 2px;"><span class="badge badge-secondary" style="font-size: 10px; font-weight: normal;"><i class="fa fa-building-o"></i> ' + escHtml(row.NM_SKPD) + '</span></div>';
+                        }
+                        return html;
+                    }
+                },
                 {
                     data: 'PAGU',
                     width: '14%',
@@ -202,7 +240,8 @@
                 } else if (result === '90') {
                     Swal.fire('Gagal', "Terjadi kesalahan pada saat import file", 'error');
                 } else {
-                    Swal.fire('Sukses', "Sukses upload data Pagu Anggaran.", 'success');
+                    var totalMsg = (result && result.total) ? ' (' + result.total + ' data rekening belanja berhasil diproses)' : '';
+                    Swal.fire('Sukses', "Sukses upload data Pagu Anggaran" + totalMsg + ".", 'success');
                 }
                 LoadDataList();
             },

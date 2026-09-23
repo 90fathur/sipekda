@@ -600,22 +600,35 @@ class SPM extends BaseController
 
     public function getRekeningPaguList(): array
     {
-        $rekeningList = $this->rekeningModel->findAll();
+        $loginData = $this->getLoginData();
+        $builder = $this->rekeningModel->builder();
+        if ($loginData && $loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {
+            $builder->groupStart()
+                ->where('KD_SKPD', $loginData['KD_UNITKER'])
+                ->orWhere('KD_SKPD IS NULL', null, false)
+                ->orWhere('KD_SKPD', '')
+                ->groupEnd();
+        }
+        $rekeningList = $builder->orderBy('KD_REKENING_BELANJA', 'ASC')->get()->getResultArray();
         $currentYear = date('Y');
 
         $db = \Config\Database::connect();
-        // Approved SPM in current year
-        $approvedSpm = $db->table('tb_spm')
-            ->where('KD_STATUS', 3)
-            ->where('YEAR(TGL_PENGAJUAN)', $currentYear)
-            ->get()
-            ->getResultArray();
+        // Approved SPM in current year (status 3 or 4)
+        $spmQuery = $db->table('tb_spm')
+            ->whereIn('KD_STATUS', [3, 4])
+            ->where('YEAR(TGL_PENGAJUAN)', $currentYear);
+
+        if ($loginData && $loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {
+            $spmQuery->where('KD_SKPD', $loginData['KD_UNITKER']);
+        }
+        $approvedSpm = $spmQuery->get()->getResultArray();
 
         $usage = [];
         $allSpmIds = [];
         $allNpdIdsFromSpm = [];
 
         foreach ($approvedSpm as $spm) {
+            $skpdKey = $spm['KD_SKPD'] ?? '';
             if (!empty($spm['ID_PENGAJUAN'])) {
                 $allSpmIds[] = $spm['ID_PENGAJUAN'];
             }
@@ -624,27 +637,37 @@ class SPM extends BaseController
             }
             if (empty($spm['ID_NPD']) && !empty($spm['KD_REKENING_BELANJA'])) {
                 $kd = $spm['KD_REKENING_BELANJA'];
+                $key = $skpdKey . '_' . $kd;
+                $usage[$key] = ($usage[$key] ?? 0) + (float)$spm['ANGGARAN'];
                 $usage[$kd] = ($usage[$kd] ?? 0) + (float)$spm['ANGGARAN'];
             }
         }
 
         $allTrackedIds = array_unique(array_merge($allSpmIds, $allNpdIdsFromSpm));
         if (!empty($allTrackedIds)) {
-            $details = $db->table('tb_data_detail')
-                ->whereIn('NO_NPD_SPM', $allTrackedIds)
-                ->where('KD_REKENING_BELANJA IS NOT NULL')
+            $details = $db->table('tb_data_detail d')
+                ->select('d.*, COALESCE(s.KD_SKPD, n.KD_SKPD) as KD_SKPD')
+                ->join('tb_spm s', 's.ID_PENGAJUAN = d.NO_NPD_SPM', 'left')
+                ->join('tb_npd n', 'n.ID_PENGAJUAN = d.NO_NPD_SPM', 'left')
+                ->whereIn('d.NO_NPD_SPM', $allTrackedIds)
+                ->where('d.KD_REKENING_BELANJA IS NOT NULL')
                 ->get()
                 ->getResultArray();
 
             foreach ($details as $d) {
                 $kd = $d['KD_REKENING_BELANJA'];
+                $skpdKey = $d['KD_SKPD'] ?? '';
+                $key = $skpdKey . '_' . $kd;
+                $usage[$key] = ($usage[$key] ?? 0) + (float)$d['ANGGARAN'];
                 $usage[$kd] = ($usage[$kd] ?? 0) + (float)$d['ANGGARAN'];
             }
         }
 
         foreach ($rekeningList as &$r) {
             $kd = $r['KD_REKENING_BELANJA'];
-            $used = $usage[$kd] ?? 0;
+            $skpdKey = $r['KD_SKPD'] ?? '';
+            $key = $skpdKey . '_' . $kd;
+            $used = !empty($skpdKey) && isset($usage[$key]) ? (float)$usage[$key] : (float)($usage[$kd] ?? 0);
             $r['SISA_PAGU'] = max(0, (float)$r['PAGU'] - $used);
             $r['DISPLAY_NAME'] = $r['NM_REKENING_BELANJA'] . ' (Sisa Pagu: Rp ' . number_format($r['SISA_PAGU'], 2, ',', '.') . ')';
         }
