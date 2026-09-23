@@ -137,6 +137,37 @@ class MenuItemModel extends Model
                     'PERSETUJUAN'  => 1,
                     'ADMIN'        => 1
                 ])->update();
+
+            // 7. Ensure Pengaturan WhatsApp exists under Pengaturan (MASTER_MENU = 14) for Admin
+            $waMenu = $db->table($this->table)->where('NM_ACTION', 'WaGatewayHome')->get()->getRowArray();
+            if (!$waMenu) {
+                $db->table($this->table)->insert([
+                    'NM_MENU'       => 'Pengaturan WhatsApp',
+                    'NM_CONTROLLER' => 'Setting',
+                    'NM_ACTION'     => 'WaGatewayHome',
+                    'KD_MENU'       => 4,
+                    'MASTER_MENU'   => 14,
+                    'CHILD'         => 0,
+                    'PENGATURAN'    => 0,
+                    'DASHBOARD'     => 0,
+                    'ICON'          => '',
+                    'ADMIN'         => 1,
+                    'USER'          => 0,
+                    'VERIFIKASI_1'  => 0,
+                    'VERIFIKASI_2'  => 0,
+                    'PERSETUJUAN'   => 0
+                ]);
+            } else {
+                $db->table($this->table)
+                    ->where('NM_ACTION', 'WaGatewayHome')
+                    ->set([
+                        'NM_MENU'       => 'Pengaturan WhatsApp',
+                        'NM_CONTROLLER' => 'Setting',
+                        'KD_MENU'       => 4,
+                        'MASTER_MENU'   => 14,
+                        'ADMIN'         => 1
+                    ])->update();
+            }
         } catch (\Throwable $e) {
             // Silently ignore if db is not ready
         }

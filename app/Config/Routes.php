@@ -132,3 +132,12 @@ $routes->group('monitoring', ['filter' => 'auth'], function ($routes) {
     $routes->get('daftartransaksi', 'Monitoring::daftarTransaksi');
     $routes->get('daftarrtgs', 'Monitoring::daftarRTGS');
 });
+
+// Pengaturan / Setting (Admin only)
+$routes->group('setting', ['filter' => 'auth:Admin'], function ($routes) {
+    $routes->get('wagatewayhome', 'Setting::waGatewayHome');
+    $routes->post('savewagateway', 'Setting::saveWaGateway');
+    $routes->post('testsendwa', 'Setting::testSendWa');
+    $routes->get('getwalogs', 'Setting::getWaLogs');
+});
+

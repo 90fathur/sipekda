@@ -282,8 +282,9 @@ class User extends BaseController
     public function getListUser()
     {
         $db = \Config\Database::connect();
+        $this->userModel->ensureSchema();
         $list = $db->table('tb_users u')
-            ->select('u.ID_USER, u.USER_NAME, u.NAMA_LENGKAP, u.JENIS_USER, u.AKTIF, mk.KD_SKPD, mk.NM_SKPD as NM_UNITKER')
+            ->select('u.ID_USER, u.USER_NAME, u.NAMA_LENGKAP, u.JENIS_USER, u.NO_HP, u.AKTIF, mk.KD_SKPD, mk.NM_SKPD as NM_UNITKER')
             ->join('ms_skpd mk', 'u.KD_UNITKER = mk.KD_SKPD', 'left')
             ->orderBy('u.ID_USER', 'ASC')
             ->get()
@@ -299,6 +300,7 @@ class User extends BaseController
             $nama = trim($this->request->getPost('NAMA_LENGKAP'));
             $jenis = trim($this->request->getPost('JENIS_USER'));
             $kdSkpd = trim($this->request->getPost('KD_UNITKER'));
+            $noHp = trim($this->request->getPost('NO_HP') ?? '');
 
             if (empty($username) || empty($nama)) {
                 return $this->response->setBody('9');
@@ -314,6 +316,7 @@ class User extends BaseController
                 'PASSWORD'     => strtolower(hash('sha512', 'assami')),
                 'JENIS_USER'   => $jenis,
                 'KD_UNITKER'   => $kdSkpd,
+                'NO_HP'        => $noHp,
                 'AKTIF'        => 1
             ]);
 
@@ -340,6 +343,7 @@ class User extends BaseController
                 'NAMA_LENGKAP' => $this->request->getPost('NAMA_LENGKAP'),
                 'JENIS_USER'   => $this->request->getPost('JENIS_USER'),
                 'KD_UNITKER'   => $this->request->getPost('KD_UNITKER'),
+                'NO_HP'        => trim($this->request->getPost('NO_HP') ?? ''),
                 'AKTIF'        => $this->request->getPost('AKTIF') ? 1 : 0
             ]);
 

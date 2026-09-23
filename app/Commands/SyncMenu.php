@@ -26,6 +26,12 @@ class SyncMenu extends BaseCommand
             $rekModel = new \App\Models\RekeningBelanjaModel();
             $rekModel->ensureSchema();
 
+            $waModel = new \App\Models\WaGatewayModel();
+            $waModel->ensureSchema();
+
+            $userModel = new \App\Models\UserModel();
+            $userModel->ensureSchema();
+
             CLI::write('Menu and database schema synchronized successfully!', 'green');
         } catch (\Throwable $e) {
             CLI::error('Error: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());

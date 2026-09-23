@@ -167,6 +167,24 @@ class BPKAD extends BaseController
 
             $this->spmModel->where('ID_PENGAJUAN', $id)->set($updateData)->update();
 
+            // Trigger WhatsApp Gateway notification (progress / final approval)
+            try {
+                $wa = new \App\Libraries\WaGateway();
+                $skpd = $this->skpdModel->where('KD_SKPD', $spm['KD_SKPD'])->first();
+                $nmSkpd = $skpd['NM_SKPD'] ?? $spm['KD_SKPD'];
+                $kegiatan = $spm['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'] ?? '-';
+                $anggaran = (float)($spm['ANGGARAN'] ?? 0);
+                $kdSkpd = (string)$spm['KD_SKPD'];
+
+                if ($nextStatus === 2) {
+                    $wa->notifyVerificationProgress('SPM', $id, $nmSkpd, $kegiatan, $anggaran, 'Verifikasi 2', $kdSkpd);
+                } elseif ($nextStatus === 3) {
+                    $wa->notifyVerificationProgress('SPM', $id, $nmSkpd, $kegiatan, $anggaran, 'Persetujuan', $kdSkpd);
+                } elseif ($nextStatus === 4) {
+                    $wa->notifyApprovalFinal('SPM', $id, $nmSkpd, $kegiatan, $anggaran, $kdSkpd);
+                }
+            } catch (\Throwable $e) {}
+
             return $this->response->setBody('00');
         } catch (\Exception $e) {
             return $this->response->setBody('#' . $e->getMessage());
@@ -184,11 +202,26 @@ class BPKAD extends BaseController
             $id = $this->request->getPost('id');
             $alasan = $this->request->getPost('alasan');
 
+            $spm = $this->spmModel->where('ID_PENGAJUAN', $id)->first();
+
             $this->spmModel->where('ID_PENGAJUAN', $id)->set([
                 'KD_STATUS'        => 5,
                 'ALASAN_PENOLAKAN' => $alasan,
                 'TGL_VEIFIKASI'    => date('Y-m-d H:i:s')
             ])->update();
+
+            // Trigger WhatsApp Gateway rejection notification to OPD
+            if ($spm) {
+                try {
+                    $wa = new \App\Libraries\WaGateway();
+                    $skpd = $this->skpdModel->where('KD_SKPD', $spm['KD_SKPD'])->first();
+                    $nmSkpd = $skpd['NM_SKPD'] ?? $spm['KD_SKPD'];
+                    $kegiatan = $spm['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'] ?? '-';
+                    $anggaran = (float)($spm['ANGGARAN'] ?? 0);
+                    $kdSkpd = (string)$spm['KD_SKPD'];
+                    $wa->notifyRejection('SPM', $id, $nmSkpd, $kegiatan, $anggaran, (string)$alasan, $kdSkpd);
+                } catch (\Throwable $e) {}
+            }
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {
@@ -224,7 +257,28 @@ class BPKAD extends BaseController
                 $updateData['TGL_SP2D'] = date('Y-m-d H:i:s');
             }
 
+            $npd = $this->npdModel->where('ID_PENGAJUAN', $id)->first();
             $this->npdModel->where('ID_PENGAJUAN', $id)->set($updateData)->update();
+
+            // Trigger WhatsApp Gateway notification
+            if ($npd) {
+                try {
+                    $wa = new \App\Libraries\WaGateway();
+                    $skpd = $this->skpdModel->where('KD_SKPD', $npd['KD_SKPD'])->first();
+                    $nmSkpd = $skpd['NM_SKPD'] ?? $npd['KD_SKPD'];
+                    $kegiatan = $npd['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'] ?? '-';
+                    $anggaran = (float)($npd['ANGGARAN'] ?? 0);
+                    $kdSkpd = (string)$npd['KD_SKPD'];
+
+                    if ($nextStatus === 2) {
+                        $wa->notifyVerificationProgress('NPD', $id, $nmSkpd, $kegiatan, $anggaran, 'Verifikasi 2', $kdSkpd);
+                    } elseif ($nextStatus === 3) {
+                        $wa->notifyVerificationProgress('NPD', $id, $nmSkpd, $kegiatan, $anggaran, 'Persetujuan', $kdSkpd);
+                    } elseif ($nextStatus === 4) {
+                        $wa->notifyApprovalFinal('NPD', $id, $nmSkpd, $kegiatan, $anggaran, $kdSkpd);
+                    }
+                } catch (\Throwable $e) {}
+            }
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {
@@ -243,11 +297,26 @@ class BPKAD extends BaseController
             $id = $this->request->getPost('id');
             $alasan = $this->request->getPost('alasan');
 
+            $npd = $this->npdModel->where('ID_PENGAJUAN', $id)->first();
+
             $this->npdModel->where('ID_PENGAJUAN', $id)->set([
                 'KD_STATUS'        => 5,
                 'ALASAN_PENOLAKAN' => $alasan,
                 'TGL_VEIFIKASI'    => date('Y-m-d H:i:s')
             ])->update();
+
+            // Trigger WhatsApp Gateway rejection notification to OPD
+            if ($npd) {
+                try {
+                    $wa = new \App\Libraries\WaGateway();
+                    $skpd = $this->skpdModel->where('KD_SKPD', $npd['KD_SKPD'])->first();
+                    $nmSkpd = $skpd['NM_SKPD'] ?? $npd['KD_SKPD'];
+                    $kegiatan = $npd['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'] ?? '-';
+                    $anggaran = (float)($npd['ANGGARAN'] ?? 0);
+                    $kdSkpd = (string)$npd['KD_SKPD'];
+                    $wa->notifyRejection('NPD', $id, $nmSkpd, $kegiatan, $anggaran, (string)$alasan, $kdSkpd);
+                } catch (\Throwable $e) {}
+            }
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {

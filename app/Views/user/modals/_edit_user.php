@@ -38,6 +38,17 @@
             </select>
         </div>
 
+        <div class="form-group mb-3">
+            <label class="font-bold">No. WhatsApp / HP</label>
+            <div class="input-group">
+                <div class="input-group-prepend">
+                    <span class="input-group-addon"><i class="fa fa-whatsapp text-success"></i></span>
+                </div>
+                <input type="text" name="NO_HP" class="form-control" value="<?= esc($user['NO_HP'] ?? '') ?>" placeholder="Contoh: 08123456789 atau 628123456789">
+            </div>
+            <small class="text-muted">Untuk notifikasi WhatsApp pengajuan/verifikasi berjenjang.</small>
+        </div>
+
         <div class="form-group mb-0">
             <label class="font-bold">Status Akun</label>
             <div>

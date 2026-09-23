@@ -17,13 +17,14 @@
                     <table id="dtUser" class="table table-striped table-bordered table-hover" style="width:100%">
                         <thead>
                             <tr>
-                                <th class="text-center" style="width: 5%;">No</th>
-                                <th class="text-center" style="width: 15%;">Username</th>
-                                <th class="text-center" style="width: 20%;">Nama Lengkap</th>
-                                <th class="text-center" style="width: 15%;">Jenis User</th>
-                                <th class="text-center" style="width: 25%;">Unit Kerja / OPD</th>
-                                <th class="text-center" style="width: 8%;">Status</th>
-                                <th class="text-center" style="width: 12%;">Aksi</th>
+                                <th class="text-center" style="width: 4%;">No</th>
+                                <th class="text-center" style="width: 14%;">Username</th>
+                                <th class="text-center" style="width: 18%;">Nama Lengkap</th>
+                                <th class="text-center" style="width: 12%;">Jenis User</th>
+                                <th class="text-center" style="width: 14%;">No. WhatsApp</th>
+                                <th class="text-center" style="width: 20%;">Unit Kerja / OPD</th>
+                                <th class="text-center" style="width: 7%;">Status</th>
+                                <th class="text-center" style="width: 11%;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -134,6 +135,13 @@ function loadUserData() {
                     else if (val.includes('Verifikasi')) cls = 'label-warning';
                     else cls = 'label-info';
                     return '<span class="label ' + cls + '">' + val + '</span>';
+                }
+            },
+            {
+                data: 'NO_HP',
+                render: function(val) {
+                    if (!val) return '<span class="text-muted"><i class="fa fa-minus"></i></span>';
+                    return '<span class="text-navy font-bold"><i class="fa fa-whatsapp text-success"></i> ' + $('<div>').text(val).html() + '</span>';
                 }
             },
             { data: 'NM_UNITKER' },

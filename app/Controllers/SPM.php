@@ -159,6 +159,13 @@ class SPM extends BaseController
                 }
             }
 
+            // Trigger WhatsApp Gateway notification to Verifikator 1
+            try {
+                $wa = new \App\Libraries\WaGateway();
+                $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
+                $wa->notifyNewSubmission('SPM', $idPengajuan, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$totalDetail, (string)$loginData['KD_UNITKER']);
+            } catch (\Throwable $e) {}
+
             return $this->response->setBody('00');
         } catch (\Exception $e) {
             return $this->response->setBody('#' . $e->getMessage());
@@ -228,6 +235,13 @@ class SPM extends BaseController
 
             // Rename uploaded files
             $this->renameFiles($idNpd);
+
+            // Trigger WhatsApp Gateway notification to Verifikator 1
+            try {
+                $wa = new \App\Libraries\WaGateway();
+                $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
+                $wa->notifyNewSubmission('NPD', $idNpd, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$total, (string)$loginData['KD_UNITKER']);
+            } catch (\Throwable $e) {}
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {
