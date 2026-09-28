@@ -212,7 +212,15 @@
                     }
                 },
                 { data: 'NM_REKENING_BELANJA', className: 'text-left' },
-                { data: 'ANGGARAN', className: 'text-right font-bold', render: $.fn.dataTable.render.number('.', ',', 2), width: '30%' }
+                { data: 'ANGGARAN', className: 'text-right font-bold', render: $.fn.dataTable.render.number('.', ',', 2), width: '28%' },
+                {
+                    data: null,
+                    className: 'text-center',
+                    width: '12%',
+                    render: function (data, type, row) {
+                        return '<button type="button" class="btn btn-xs btn-danger btn-outline" onclick="deleteRincianBelanja(' + row.ID_DETAIL + ', \'' + id + '\')" title="Hapus Rincian"><i class="fa fa-trash"></i> Hapus</button>';
+                    }
+                }
             ],
             autoWidth: false,
             language: { search: 'Cari:' },
@@ -221,6 +229,38 @@
                 [10, 25, 50, 100, 200, "All"]
             ],
             iDisplayLength: 10
+        });
+    }
+
+    function deleteRincianBelanja(idDetail, idPengajuan) {
+        Swal.fire({
+            title: 'Hapus Rincian Belanja?',
+            text: 'Rincian rekening belanja ini akan dihapus dari pengajuan dan total alokasi anggaran akan dihitung ulang secara otomatis.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ed5565',
+            cancelButtonColor: '#c2c2c2',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('<?= base_url('spm/deletedatadetail') ?>', { id: idDetail }, function(resp) {
+                    var status = (typeof resp === 'object') ? resp.status : resp.trim();
+                    if (status === '00') {
+                        Swal.fire('Terhapus', 'Rincian belanja berhasil dihapus.', 'success');
+                        LoadDataDetailList(idPengajuan);
+                        if (typeof resp === 'object' && resp.formattedTotal !== undefined) {
+                            $('#TOTAL_ALOKASI_ANGGARAN').val(resp.formattedTotal);
+                        }
+                        Reload();
+                    } else {
+                        var msg = (typeof resp === 'object' && resp.message) ? resp.message : (resp.replace('#', '') || 'Gagal menghapus rincian.');
+                        Swal.fire('Gagal', msg, 'error');
+                    }
+                }).fail(function() {
+                    Swal.fire('Kesalahan', 'Terjadi kesalahan sistem saat menghapus rincian belanja.', 'error');
+                });
+            }
         });
     }
 </script>

@@ -636,12 +636,52 @@ class SPM extends BaseController
 
     public function deleteDataDetail()
     {
-        $id = $this->request->getPost('id');
-        if (!empty($id)) {
-            $this->detailModel->delete($id);
-            return $this->response->setBody('00');
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('#Sesi berakhir.');
         }
-        return $this->response->setBody('#ID detail tidak valid.');
+
+        $id = $this->request->getPost('id');
+        if (empty($id)) {
+            return $this->response->setBody('#ID detail tidak valid.');
+        }
+
+        $detail = $this->detailModel->find($id);
+        if (!$detail) {
+            return $this->response->setBody('#Data rincian tidak ditemukan.');
+        }
+
+        $noNpdSpm = $detail['NO_NPD_SPM'];
+        $db = \Config\Database::connect();
+
+        // Cek jika rincian sudah terhubung ke pengajuan yang telah diajukan (bukan ID_USER draft)
+        $isSubmitted = ($noNpdSpm !== (string)$loginData['ID_USER']);
+        if ($isSubmitted) {
+            $allowedRoles = ['Admin', 'Verifikasi 1', 'Verifikasi 2', 'Persetujuan'];
+            if (!in_array($loginData['JENIS_USER'], $allowedRoles, true)) {
+                return $this->response->setBody('#Anda tidak memiliki izin menghapus rincian pada pengajuan ini.');
+            }
+        }
+
+        $this->detailModel->delete($id);
+
+        $newTotal = 0;
+        if ($isSubmitted) {
+            $newTotal = (float)($db->table('tb_data_detail')
+                ->where('NO_NPD_SPM', $noNpdSpm)
+                ->selectSum('ANGGARAN')
+                ->get()
+                ->getRow()->ANGGARAN ?? 0);
+
+            $db->table('tb_npd')->where('ID_PENGAJUAN', $noNpdSpm)->set(['ANGGARAN' => $newTotal])->update();
+            $db->table('tb_spm')->where('ID_PENGAJUAN', $noNpdSpm)->set(['ANGGARAN' => $newTotal])->update();
+        }
+
+        return $this->response->setJSON([
+            'status'         => '00',
+            'newTotal'       => $newTotal,
+            'formattedTotal' => number_format($newTotal, 2, ',', '.')
+        ]);
     }
 
     public function getRekeningPaguList(): array

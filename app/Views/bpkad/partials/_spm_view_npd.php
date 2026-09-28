@@ -54,7 +54,8 @@
                                         <tr>
                                             <th class="text-center" style="width: 5%;">No</th>
                                             <th class="text-center">Rekening Belanja</th>
-                                            <th class="text-center" style="width: 30%;">Anggaran</th>
+                                            <th class="text-center" style="width: 28%;">Anggaran</th>
+                                            <th class="text-center" style="width: 12%;">Aksi</th>
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
@@ -65,7 +66,7 @@
                             <h4>Total Alokasi Anggaran</h4>
                             <p>Jumlah total anggaran yang di alokasikan untuk kegiatan tersebut.</p>
                             <div class="mb-4">
-                                <input class="form-control col-md-6 text-right font-bold currency" value="<?= number_format((float)$npd['ANGGARAN'], 2, ',', '.') ?>" readonly />
+                                <input class="form-control col-md-6 text-right font-bold currency" id="TOTAL_ALOKASI_ANGGARAN" value="<?= number_format((float)$npd['ANGGARAN'], 2, ',', '.') ?>" readonly />
                             </div>
 
                             <?php if (!empty($npd['ALASAN_PENOLAKAN'])): ?>

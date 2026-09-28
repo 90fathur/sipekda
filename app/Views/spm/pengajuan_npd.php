@@ -282,7 +282,8 @@ function saveDataDetail() {
 
 function deleteDataDetail(id) {
     $.post('<?= base_url('spm/deletedatadetail') ?>', { id: id }, function(resp) {
-        if (resp.trim() === '00') {
+        var status = (typeof resp === 'object') ? resp.status : resp.trim();
+        if (status === '00') {
             loadDetailTable();
         }
     });
@@ -352,24 +353,45 @@ function deleteFile(fileName) {
 
 function submitNPD(e) {
     e.preventDefault();
-    var formData = $('#form-data').serialize();
 
-    var l = $('.ldSave').ladda();
-    l.ladda('start');
+    // Validasi rincian belanja
+    var rowCount = $('#dtDetail tbody tr td button').length;
+    if (rowCount === 0) {
+        swal.fire('Peringatan', 'Silakan tambahkan minimal 1 rincian rekening belanja terlebih dahulu.', 'warning');
+        return false;
+    }
 
-    $.post('<?= base_url('spm/savepengajuannpd') ?>', formData, function(resp) {
-        l.ladda('stop');
-        if (resp.trim() === '00') {
-            swal.fire('Sukses', 'Pengajuan NPD berhasil disimpan dan diajukan ke BPKAD!', 'success')
-                .then(() => {
-                    window.location.href = '<?= base_url('spm/statuspengajuannpdhome') ?>';
-                });
-        } else {
-            swal.fire('Pemberitahuan', resp.replace('#', ''), 'warning');
+    var totalText = $('#lblTotalDetail').text();
+    swal.fire({
+        title: 'Konfirmasi Pengajuan NPD',
+        html: 'Pengajuan ini memuat <b>' + rowCount + ' rincian rekening belanja</b> dengan total anggaran:<br><h3 class="text-navy font-bold mt-2">' + totalText + '</h3><p class="text-muted mt-2">Pastikan rincian rekening belanja sudah sesuai sebelum diajukan ke BPKAD.</p>',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Ajukan ke BPKAD',
+        cancelButtonText: 'Periksa Kembali',
+        confirmButtonColor: '#1ab394',
+        cancelButtonColor: '#c2c2c2'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            var formData = $('#form-data').serialize();
+            var l = $('.ldSave').ladda();
+            l.ladda('start');
+
+            $.post('<?= base_url('spm/savepengajuannpd') ?>', formData, function(resp) {
+                l.ladda('stop');
+                if (resp.trim() === '00') {
+                    swal.fire('Sukses', 'Pengajuan NPD berhasil disimpan dan diajukan ke BPKAD!', 'success')
+                        .then(() => {
+                            window.location.href = '<?= base_url('spm/statuspengajuannpdhome') ?>';
+                        });
+                } else {
+                    swal.fire('Pemberitahuan', resp.replace('#', ''), 'warning');
+                }
+            }).fail(function() {
+                l.ladda('stop');
+                swal.fire('Kesalahan', 'Gagal mengirim pengajuan.', 'error');
+            });
         }
-    }).fail(function() {
-        l.ladda('stop');
-        swal.fire('Kesalahan', 'Gagal mengirim pengajuan.', 'error');
     });
 
     return false;
