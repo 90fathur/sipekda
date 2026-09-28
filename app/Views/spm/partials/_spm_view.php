@@ -58,6 +58,15 @@
         </div>
     </div>
 
+<?php
+$loginData = session()->get('LoginData') ?? [];
+$jenisUser = $loginData['JENIS_USER'] ?? '';
+$userUnit = $loginData['KD_UNITKER'] ?? '';
+$isVerifikator = in_array($jenisUser, ['Admin', 'Verifikasi 1', 'Verifikasi 2', 'Persetujuan']);
+$isOwnerOpd = ($jenisUser === 'User' && !empty($userUnit) && $userUnit === ($spm['KD_SKPD'] ?? ''));
+$canManage = $isVerifikator || ($isOwnerOpd && (int)$spm['KD_STATUS'] === 1);
+?>
+
     <h5 class="font-bold text-navy mt-3"><i class="fa fa-list"></i> Rincian Belanja (Data Detail)</h5>
     <div class="table-responsive">
         <table id="dtDetailView" class="table table-bordered table-striped table-sm" style="width:100%">
@@ -65,8 +74,11 @@
                 <tr>
                     <th style="width: 5%;">No</th>
                     <th style="width: 25%;">Kode Rekening</th>
-                    <th style="width: 45%;">Nama Rekening</th>
-                    <th class="text-right" style="width: 25%;">Nominal (Rp)</th>
+                    <th style="width: <?= $canManage ? '40%' : '45%' ?>;">Nama Rekening</th>
+                    <th class="text-right" style="width: <?= $canManage ? '20%' : '25%' ?>;">Nominal (Rp)</th>
+                    <?php if ($canManage): ?>
+                    <th class="text-center" style="width: 10%;">Aksi</th>
+                    <?php endif; ?>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -79,9 +91,9 @@
             <thead>
                 <tr>
                     <th style="width: 5%;">No</th>
-                    <th style="width: 65%;">Nama Berkas</th>
+                    <th style="width: 60%;">Nama Berkas</th>
                     <th style="width: 15%;">Ukuran</th>
-                    <th class="text-center" style="width: 15%;">Aksi</th>
+                    <th class="text-center" style="width: 20%;">Aksi</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -94,44 +106,125 @@
 
 <script>
 $(document).ready(function() {
-    var idPengajuan = '<?= $spm['ID_PENGAJUAN'] ?>';
+    loadViewSpmDetails();
+    loadViewSpmFiles();
+});
 
-    // Load details
+var idPengajuan = '<?= $spm['ID_PENGAJUAN'] ?>';
+var canManage = <?= $canManage ? 'true' : 'false' ?>;
+
+function loadViewSpmDetails() {
     $.get('<?= base_url('spm/getdatadetail') ?>', { NO_NPD_SPM: idPengajuan }, function(items) {
-        var tbody = '';
-        if (items.length === 0) {
-            tbody = '<tr><td colspan="4" class="text-center text-muted">Tidak ada rincian belanja</td></tr>';
+        var tbody = $('#dtDetailView tbody').empty();
+        if (!items || items.length === 0) {
+            tbody.append('<tr><td colspan="' + (canManage ? 5 : 4) + '" class="text-center text-muted">Tidak ada rincian belanja</td></tr>');
         } else {
+            var total = 0;
             items.forEach(function(item, idx) {
-                tbody += '<tr>' +
-                    '<td class="text-center">' + (idx + 1) + '</td>' +
-                    '<td>' + item.KD_REKENING_BELANJA + '</td>' +
-                    '<td>' + item.NM_REKENING_BELANJA + '</td>' +
-                    '<td class="text-right font-bold">Rp ' + parseFloat(item.ANGGARAN || 0).toLocaleString('id-ID', { minimumFractionDigits: 2 }) + '</td>' +
-                    '</tr>';
+                var nominal = parseFloat(item.ANGGARAN || 0);
+                total += nominal;
+                var actCol = '';
+                if (canManage) {
+                    actCol = '<td class="text-center">' +
+                        '<button type="button" class="btn btn-xs btn-danger" onclick="deleteDetailFromViewSpm(' + item.ID_DETAIL + ')" title="Hapus Rincian"><i class="fa fa-trash"></i> Hapus</button>' +
+                        '</td>';
+                }
+                tbody.append(
+                    '<tr>' +
+                        '<td class="text-center">' + (idx + 1) + '</td>' +
+                        '<td>' + (item.KD_REKENING_BELANJA || '-') + '</td>' +
+                        '<td>' + (item.NM_REKENING_BELANJA || '-') + '</td>' +
+                        '<td class="text-right font-bold">Rp ' + nominal.toLocaleString('id-ID', { minimumFractionDigits: 2 }) + '</td>' +
+                        actCol +
+                    '</tr>'
+                );
+            });
+            tbody.append(
+                '<tr class="bg-light font-bold">' +
+                    '<td colspan="3" class="text-right">TOTAL:</td>' +
+                    '<td class="text-right text-success">Rp ' + total.toLocaleString('id-ID', { minimumFractionDigits: 2 }) + '</td>' +
+                    (canManage ? '<td></td>' : '') +
+                '</tr>'
+            );
+        }
+    });
+}
+
+function deleteDetailFromViewSpm(idDetail) {
+    Swal.fire({
+        title: 'Hapus Rincian Belanja?',
+        text: 'Rincian ini akan dihapus dari pengajuan dan total anggaran akan dihitung ulang secara otomatis.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ed5565',
+        cancelButtonColor: '#c2c2c2',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.post('<?= base_url('spm/deletedatadetail') ?>', { id: idDetail }, function(resp) {
+                var status = (typeof resp === 'object') ? resp.status : resp.trim();
+                if (status === '00') {
+                    Swal.fire('Terhapus', 'Rincian belanja berhasil dihapus.', 'success');
+                    loadViewSpmDetails();
+                    if (typeof Reload === 'function') Reload();
+                    if ($.fn.DataTable.isDataTable('#dtTable')) $('#dtTable').DataTable().ajax.reload(null, false);
+                } else {
+                    Swal.fire('Gagal', (resp.replace ? resp.replace('#', '') : 'Gagal menghapus rincian'), 'error');
+                }
             });
         }
-        $('#dtDetailView tbody').html(tbody);
     });
+}
 
-    // Load files
+function loadViewSpmFiles() {
     $.get('<?= base_url('spm/getallfiles') ?>', { idPengajuan: idPengajuan }, function(files) {
-        var tbody = '';
-        if (files.length === 0) {
-            tbody = '<tr><td colspan="4" class="text-center text-muted">Tidak ada berkas terlampir</td></tr>';
+        var tbody = $('#dtFilesView tbody').empty();
+        if (!files || files.length === 0) {
+            tbody.append('<tr><td colspan="4" class="text-center text-muted">Tidak ada berkas terlampir</td></tr>';
         } else {
             files.forEach(function(f, idx) {
                 var sizeKb = (f.Size / 1024).toFixed(1) + ' KB';
                 var fileUrl = '<?= base_url('uploads/pdf') ?>/' + f.FileName;
-                tbody += '<tr>' +
-                    '<td class="text-center">' + (idx + 1) + '</td>' +
-                    '<td><a href="' + fileUrl + '" target="_blank"><i class="fa fa-file-pdf-o text-danger"></i> ' + f.Name + '</a></td>' +
-                    '<td>' + sizeKb + '</td>' +
-                    '<td class="text-center"><a href="' + fileUrl + '" target="_blank" class="btn btn-xs btn-info"><i class="fa fa-eye"></i> Buka</a></td>' +
-                    '</tr>';
+                var actBtn = '<a href="' + fileUrl + '" target="_blank" class="btn btn-xs btn-info"><i class="fa fa-eye"></i> Buka</a>';
+                if (canManage) {
+                    actBtn += ' <button type="button" class="btn btn-xs btn-danger" onclick="deleteFileFromViewSpm(\'' + f.FileName + '\')" title="Hapus Berkas"><i class="fa fa-trash"></i> Hapus</button>';
+                }
+                tbody.append(
+                    '<tr>' +
+                        '<td class="text-center">' + (idx + 1) + '</td>' +
+                        '<td><a href="' + fileUrl + '" target="_blank"><i class="fa fa-file-pdf-o text-danger"></i> ' + f.Name + '</a></td>' +
+                        '<td>' + sizeKb + '</td>' +
+                        '<td class="text-center">' + actBtn + '</td>' +
+                    '</tr>'
+                );
             });
         }
-        $('#dtFilesView tbody').html(tbody);
     });
-});
+}
+
+function deleteFileFromViewSpm(fileName) {
+    Swal.fire({
+        title: 'Hapus Lampiran Berkas?',
+        text: 'Berkas "' + fileName + '" akan dihapus secara permanen.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ed5565',
+        cancelButtonColor: '#c2c2c2',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.post('<?= base_url('spm/deletefile') ?>', { fileName: fileName }, function(resp) {
+                if (resp.trim() === '0') {
+                    Swal.fire('Terhapus', 'Berkas berhasil dihapus.', 'success');
+                    loadViewSpmFiles();
+                    if (typeof Reload === 'function') Reload();
+                } else {
+                    Swal.fire('Gagal', 'Tidak dapat menghapus berkas.', 'error');
+                }
+            });
+        }
+    });
+}
 </script>

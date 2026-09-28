@@ -154,21 +154,32 @@ class SPM extends BaseController
             $totalDetail = 0;
             if (!empty($draftDetails)) {
                 foreach ($draftDetails as $item) {
+                    $kd = trim((string)($item['KD_REKENING_BELANJA'] ?? ''));
+                    if (!str_starts_with($kd, '5.')) {
+                        $this->detailModel->delete($item['ID_DETAIL']);
+                        continue;
+                    }
                     $this->detailModel->update($item['ID_DETAIL'], ['NO_NPD_SPM' => $idPengajuan]);
                     $totalDetail += (float)$item['ANGGARAN'];
                 }
                 $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->set(['ANGGARAN' => $totalDetail])->update();
             } else {
-                // If no draft details, copy from NPD
+                // If no draft details, copy from NPD (hanya rekening SIPD 5.x)
                 $npdDetails = $this->detailModel->where('NO_NPD_SPM', $idNpd)->findAll();
                 foreach ($npdDetails as $d) {
+                    $kd = trim((string)($d['KD_REKENING_BELANJA'] ?? ''));
+                    if (!str_starts_with($kd, '5.')) {
+                        continue;
+                    }
                     $this->detailModel->insert([
                         'NO_NPD_SPM'          => $idPengajuan,
                         'KD_REKENING_BELANJA' => $d['KD_REKENING_BELANJA'],
                         'NM_REKENING_BELANJA' => $d['NM_REKENING_BELANJA'],
                         'ANGGARAN'            => $d['ANGGARAN']
                     ]);
+                    $totalDetail += (float)$d['ANGGARAN'];
                 }
+                $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->set(['ANGGARAN' => $totalDetail])->update();
             }
 
             // Trigger WhatsApp Gateway notification to Verifikator 1
@@ -247,10 +258,15 @@ class SPM extends BaseController
 
             $this->npdModel->insert($npdData);
 
-            // Reassign draft details
+            // Reassign draft details (hanya rekening SIPD 5.x)
             $draftDetails = $this->detailModel->where('NO_NPD_SPM', (string)$loginData['ID_USER'])->findAll();
             $total = 0;
             foreach ($draftDetails as $d) {
+                $kd = trim((string)($d['KD_REKENING_BELANJA'] ?? ''));
+                if (!str_starts_with($kd, '5.')) {
+                    $this->detailModel->delete($d['ID_DETAIL']);
+                    continue;
+                }
                 $this->detailModel->update($d['ID_DETAIL'], ['NO_NPD_SPM' => $idNpd]);
                 $total += (float)$d['ANGGARAN'];
             }
@@ -582,6 +598,35 @@ class SPM extends BaseController
         }
 
         $details = $this->detailModel->where('NO_NPD_SPM', $id)->findAll();
+
+        // Auto-heal: jika pengajuan memiliki rekening belanja riil SIPD (kode berawalan 5.),
+        // bersihkan otomatis data rincian dummy / nomor uji coba lama (seperti '2', '227', '98') yang tidak sengaja tertinggal
+        $hasReal = false;
+        $dummyIds = [];
+        foreach ($details as $d) {
+            $kd = trim((string)($d['KD_REKENING_BELANJA'] ?? ''));
+            if (str_starts_with($kd, '5.')) {
+                $hasReal = true;
+            } else {
+                $dummyIds[] = $d['ID_DETAIL'];
+            }
+        }
+
+        if ($hasReal && !empty($dummyIds)) {
+            $this->detailModel->whereIn('ID_DETAIL', $dummyIds)->delete();
+            $details = array_values(array_filter($details, function($d) use ($dummyIds) {
+                return !in_array($d['ID_DETAIL'], $dummyIds);
+            }));
+
+            // Sinkronkan nominal ANGGARAN di tabel pengajuan
+            if (str_contains($id, '.')) {
+                $realTotal = array_sum(array_column($details, 'ANGGARAN'));
+                $db = \Config\Database::connect();
+                $db->table('tb_npd')->where('ID_PENGAJUAN', $id)->set(['ANGGARAN' => $realTotal])->update();
+                $db->table('tb_spm')->where('ID_PENGAJUAN', $id)->set(['ANGGARAN' => $realTotal])->update();
+            }
+        }
+
         return $this->response->setJSON($details);
     }
 
@@ -658,7 +703,21 @@ class SPM extends BaseController
         $isSubmitted = ($noNpdSpm !== (string)$loginData['ID_USER']);
         if ($isSubmitted) {
             $allowedRoles = ['Admin', 'Verifikasi 1', 'Verifikasi 2', 'Persetujuan'];
-            if (!in_array($loginData['JENIS_USER'], $allowedRoles, true)) {
+            $allowed = in_array($loginData['JENIS_USER'], $allowedRoles, true);
+
+            // OPD pemilik pengajuan boleh menghapus jika pengajuan masih status 1 (Menunggu Verifikasi 1)
+            if (!$allowed) {
+                $npd = $this->npdModel->where('ID_PENGAJUAN', $noNpdSpm)->first();
+                $spm = $this->spmModel->where('ID_PENGAJUAN', $noNpdSpm)->first();
+                $itemStatus = (int)($npd['KD_STATUS'] ?? ($spm['KD_STATUS'] ?? 0));
+                $itemSkpd = $npd['KD_SKPD'] ?? ($spm['KD_SKPD'] ?? '');
+
+                if ($itemStatus === 1 && !empty($loginData['KD_UNITKER']) && $itemSkpd === $loginData['KD_UNITKER']) {
+                    $allowed = true;
+                }
+            }
+
+            if (!$allowed) {
                 return $this->response->setBody('#Anda tidak memiliki izin menghapus rincian pada pengajuan ini.');
             }
         }

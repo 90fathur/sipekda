@@ -149,6 +149,8 @@ _modules/*
 # Temporary test logs & cookies
 /tests/*.txt
 /tests/*.log
+*.sql
+*.xlsx
 
 
 
