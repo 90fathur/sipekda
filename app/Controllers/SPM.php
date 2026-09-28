@@ -469,7 +469,7 @@ class SPM extends BaseController
         $path = FCPATH . 'uploads/pdf/' . $cleanFile;
 
         if (!file_exists($path)) {
-            return $this->response->setBody('9');
+            return $this->response->setBody('0');
         }
 
         $prefix = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME'] ?? '') . '_';

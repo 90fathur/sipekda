@@ -73,10 +73,12 @@ $routes->group('spm', ['filter' => 'auth'], function ($routes) {
         $routes->post('savepengajuan', 'SPM::savePengajuan');
         $routes->post('savepengajuannpd', 'SPM::savePengajuanNPD');
         $routes->post('uploadfile', 'SPM::uploadFile');
-        $routes->match(['get', 'post'], 'deletefile', 'SPM::deleteFile');
         $routes->post('adddatadetail', 'SPM::addDataDetail');
-        $routes->post('deletedatadetail', 'SPM::deleteDataDetail');
     });
+
+    // File and detail deletion (Authorization checked in controller for OPD, Admin, and Verifikator)
+    $routes->match(['get', 'post'], 'deletefile', 'SPM::deleteFile');
+    $routes->post('deletedatadetail', 'SPM::deleteDataDetail');
 
     // Submissions status and monitoring (All roles)
     $routes->get('statuspengajuanhome', 'SPM::statusPengajuanHome');

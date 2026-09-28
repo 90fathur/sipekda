@@ -189,8 +189,12 @@
                     } else {
                         Swal.fire('Gagal', 'Tidak dapat menghapus berkas. Pastikan Anda memiliki izin akses.', 'error');
                     }
-                }).fail(function() {
-                    Swal.fire('Kesalahan', 'Terjadi kesalahan sistem saat menghapus berkas.', 'error');
+                }).fail(function(xhr) {
+                    var errorMsg = 'Terjadi kesalahan sistem saat menghapus berkas.';
+                    if (xhr && xhr.status === 403) {
+                        errorMsg = 'Akses Ditolak: Anda tidak memiliki izin untuk menghapus berkas ini.';
+                    }
+                    Swal.fire('Kesalahan', errorMsg, 'error');
                 });
             }
         });
