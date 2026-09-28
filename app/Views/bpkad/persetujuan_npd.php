@@ -152,6 +152,11 @@
                                     </div>
                                     <div class="file-name">
                                         <a href="${fileUrl}" target="_blank">${file.Name || file.FileName}</a>
+                                        <div class="mt-2 text-center">
+                                            <button type="button" class="btn btn-xs btn-danger btn-outline" onclick="deleteLampiran('${file.FileName}', '${idPengajuan}')" title="Hapus Berkas Lampiran">
+                                                <i class="fa fa-trash"></i> Hapus
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -161,6 +166,32 @@
             },
             error: function (error) {
                 console.error('Error fetching files:', error);
+            }
+        });
+    }
+
+    function deleteLampiran(fileName, idPengajuan) {
+        Swal.fire({
+            title: 'Hapus Berkas?',
+            text: 'Apakah Anda yakin ingin menghapus berkas "' + fileName + '" ini dari pengajuan?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ed5565',
+            cancelButtonColor: '#c2c2c2',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post('<?= base_url('spm/deletefile') ?>', { fileName: fileName }, function (resp) {
+                    if (resp.trim() === '0') {
+                        Swal.fire('Terhapus', 'Berkas berhasil dihapus.', 'success');
+                        GetAllFiles(idPengajuan);
+                    } else {
+                        Swal.fire('Gagal', 'Tidak dapat menghapus berkas. Pastikan Anda memiliki izin akses.', 'error');
+                    }
+                }).fail(function() {
+                    Swal.fire('Kesalahan', 'Terjadi kesalahan sistem saat menghapus berkas.', 'error');
+                });
             }
         });
     }

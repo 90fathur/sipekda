@@ -44,6 +44,18 @@ class SPM extends BaseController
         // Clean up temp details for drafting
         $this->detailModel->where('NO_NPD_SPM', (string)$loginData['ID_USER'])->delete();
 
+        // Clean up stale unsubmitted draft files for this user to prevent test files from attaching
+        $uploadDir = FCPATH . 'uploads/pdf/';
+        if (is_dir($uploadDir) && !empty($loginData['USER_NAME'])) {
+            $draftPrefix = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME']) . '_';
+            $oldDrafts = glob($uploadDir . $draftPrefix . '*');
+            if (!empty($oldDrafts)) {
+                foreach ($oldDrafts as $f) {
+                    @unlink($f);
+                }
+            }
+        }
+
         $data = [
             'Header'              => 'PENGAJUAN SPP/SPM',
             'Title'               => 'Users',
@@ -181,6 +193,18 @@ class SPM extends BaseController
 
         // Clean up drafting details
         $this->detailModel->where('NO_NPD_SPM', (string)$loginData['ID_USER'])->delete();
+
+        // Clean up stale unsubmitted draft files for this user so old test files don't leak into new submissions
+        $uploadDir = FCPATH . 'uploads/pdf/';
+        if (is_dir($uploadDir) && !empty($loginData['USER_NAME'])) {
+            $draftPrefix = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME']) . '_';
+            $oldDrafts = glob($uploadDir . $draftPrefix . '*');
+            if (!empty($oldDrafts)) {
+                foreach ($oldDrafts as $f) {
+                    @unlink($f);
+                }
+            }
+        }
 
         $data = [
             'Header'              => 'PENGAJUAN NPD',
@@ -419,7 +443,7 @@ class SPM extends BaseController
             return;
         }
 
-        $prefix = $loginData['USER_NAME'] . '_';
+        $prefix = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME'] ?? '') . '_';
         $files = glob($dir . $prefix . '*');
         foreach ($files as $file) {
             $baseName = basename($file);
@@ -448,19 +472,27 @@ class SPM extends BaseController
             return $this->response->setBody('9');
         }
 
-        $prefix = $loginData['USER_NAME'] . '_';
-        $role = $loginData['ROLE_NAME'] ?? '';
+        $prefix = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME'] ?? '') . '_';
+        $jenisUser = $loginData['JENIS_USER'] ?? '';
         $allowed = false;
 
-        // Pengguna hanya boleh menghapus file yang diunggahnya sendiri atau admin
-        if (str_starts_with($cleanFile, $prefix) || $role === 'Admin') {
+        // 1. Admin dan tim verifikator/persetujuan berhak menghapus berkas (misal berkas uji coba/salah lampir)
+        if (in_array($jenisUser, ['Admin', 'Verifikasi 1', 'Verifikasi 2', 'Persetujuan'])) {
+            $allowed = true;
+        } elseif (str_starts_with($cleanFile, $prefix)) {
+            // 2. Draft milik user sendiri
             $allowed = true;
         } else {
-            // Cek jika berkas berawalan ID_PENGAJUAN dari SKPD pengguna
+            // 3. Berkas yang sudah diajukan oleh OPD milik user sendiri
             $parts = explode('_', $cleanFile, 2);
             if (!empty($parts[0])) {
-                $spm = $this->spmModel->where('ID_PENGAJUAN', $parts[0])->first();
-                if ($spm && ($spm['KD_SKPD'] === $loginData['KD_SKPD'] || $spm['CREATED_BY'] === $loginData['USER_NAME'])) {
+                $idPengajuan = $parts[0];
+                $userUnit = $loginData['KD_UNITKER'] ?? '';
+                $npd = $this->npdModel->where('ID_PENGAJUAN', $idPengajuan)->first();
+                $spm = $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->first();
+                $skpdPengajuan = $npd['KD_SKPD'] ?? ($spm['KD_SKPD'] ?? '');
+
+                if (!empty($skpdPengajuan) && !empty($userUnit) && $skpdPengajuan === $userUnit) {
                     $allowed = true;
                 }
             }
