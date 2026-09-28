@@ -186,7 +186,8 @@ class SPM extends BaseController
             try {
                 $wa = new \App\Libraries\WaGateway();
                 $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
-                $wa->notifyNewSubmission('SPM', $idPengajuan, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$totalDetail, (string)$loginData['KD_UNITKER']);
+                $submitterId = !empty($loginData['ID_USER']) ? (int)$loginData['ID_USER'] : null;
+                $wa->notifyNewSubmission('SPM', $idPengajuan, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$totalDetail, (string)$loginData['KD_UNITKER'], $submitterId);
             } catch (\Throwable $e) {}
 
             return $this->response->setBody('00');
@@ -280,7 +281,8 @@ class SPM extends BaseController
             try {
                 $wa = new \App\Libraries\WaGateway();
                 $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
-                $wa->notifyNewSubmission('NPD', $idNpd, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$total, (string)$loginData['KD_UNITKER']);
+                $submitterId = !empty($loginData['ID_USER']) ? (int)$loginData['ID_USER'] : null;
+                $wa->notifyNewSubmission('NPD', $idNpd, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$total, (string)$loginData['KD_UNITKER'], $submitterId);
             } catch (\Throwable $e) {}
 
             return $this->response->setBody('00');

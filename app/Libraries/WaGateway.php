@@ -201,31 +201,52 @@ class WaGateway
     }
 
     /**
-     * Send notification to all active users with specific role
+     * Send notification to active users with specific role
+     * For Verifikasi 1, strictly targets only the verifier assigned to $kdSkpd
      */
     public function sendToRole(string $roleName, string $message, ?string $kdSkpd = null): int
     {
         $db = \Config\Database::connect();
         $targetUsers = [];
 
-        // For Verifikasi 1, check assigned SKPD if applicable
-        if ($roleName === 'Verifikasi 1' && !empty($kdSkpd)) {
+        // For Verifikasi 1 & 2, check assigned SKPD in tb_user_role
+        if (in_array($roleName, ['Verifikasi 1', 'Verifikasi 2']) && !empty($kdSkpd)) {
+            $shortPrefix = preg_replace('/(\.0000)+$/', '', $kdSkpd);
+
             $assigned = $db->table('tb_user_role r')
                 ->select('u.ID_USER, u.NAMA_LENGKAP, u.NO_HP')
                 ->join('tb_users u', 'r.USERNAME = u.USER_NAME', 'inner')
-                ->where('r.KD_SKPD', $kdSkpd)
+                ->groupStart()
+                    ->where('r.KD_SKPD', $kdSkpd)
+                    ->orLike('r.KD_SKPD', $shortPrefix, 'after')
+                ->groupEnd()
+                ->where('u.JENIS_USER', $roleName)
                 ->where('u.AKTIF', 1)
                 ->where('u.NO_HP IS NOT NULL', null, false)
                 ->where('u.NO_HP !=', '')
+                ->groupBy('u.ID_USER')
                 ->get()
                 ->getResultArray();
 
             if (!empty($assigned)) {
                 $targetUsers = $assigned;
+            } elseif ($roleName === 'Verifikasi 1') {
+                // Khusus Verifikasi 1: jangan broadcast ke verifikator lain jika OPD ini belum di-mapping
+                try {
+                    $db->table('tb_wa_logs')->insert([
+                        'NO_TUJUAN'      => '-',
+                        'NAMA_PENERIMA'  => 'Verifikasi 1 (' . $kdSkpd . ')',
+                        'PESAN'          => str_replace('{NAMA_PENERIMA}', 'Verifikator 1', $message),
+                        'STATUS'         => 'FAILED',
+                        'RESPON_GATEWAY' => "Peringatan: Belum ada akun Verifikator 1 yang ditugaskan untuk OPD (KD: {$kdSkpd}) di tabel tb_user_role.",
+                        'CREATED_AT'     => date('Y-m-d H:i:s')
+                    ]);
+                } catch (\Throwable $e) {}
+                return 0;
             }
         }
 
-        // If no specific assignment or for other roles (Verifikasi 2, Persetujuan), get all active users in that role
+        // If no specific assignment or for other roles (Persetujuan / Verifikasi 2 general), get all active users in that role
         if (empty($targetUsers)) {
             $targetUsers = $db->table('tb_users')
                 ->select('ID_USER, NAMA_LENGKAP, NO_HP')
@@ -238,12 +259,11 @@ class WaGateway
         }
 
         if (empty($targetUsers)) {
-            // Log informative message to tb_wa_logs
             try {
                 $db->table('tb_wa_logs')->insert([
                     'NO_TUJUAN'      => '-',
                     'NAMA_PENERIMA'  => $roleName . ' (' . ($kdSkpd ?? 'Semua') . ')',
-                    'PESAN'          => $message,
+                    'PESAN'          => str_replace('{NAMA_PENERIMA}', $roleName, $message),
                     'STATUS'         => 'FAILED',
                     'RESPON_GATEWAY' => "Peringatan: Tidak ada akun {$roleName} dengan Nomor HP terdaftar di Manajemen User.",
                     'CREATED_AT'     => date('Y-m-d H:i:s')
@@ -255,7 +275,9 @@ class WaGateway
         foreach ($targetUsers as $user) {
             $phone = $user['NO_HP'] ?? '';
             if (!empty($phone)) {
-                $res = $this->send($phone, $message, $user['NAMA_LENGKAP'] ?? $roleName);
+                $recipientName = $user['NAMA_LENGKAP'] ?? $roleName;
+                $personalizedMessage = str_replace('{NAMA_PENERIMA}', $recipientName, $message);
+                $res = $this->send($phone, $personalizedMessage, $recipientName);
                 if (($res['status'] ?? '') === 'success') {
                     $sentCount++;
                 }
@@ -267,28 +289,61 @@ class WaGateway
 
     /**
      * Send notification to active Admin OPD / User in specified SKPD
+     * Excludes BPKAD verification staff (Verifikator 1, Verifikator 2, Persetujuan, Admin)
      */
-    public function sendToOpd(string $kdSkpd, string $message): int
+    public function sendToOpd(string $kdSkpd, string $message, ?int $submitterUserId = null): int
     {
         $db = \Config\Database::connect();
-        $users = $db->table('tb_users')
+        $users = [];
+
+        // 1. Prioritaskan akun pengaju yang sedang login jika ada
+        if (!empty($submitterUserId)) {
+            $submitter = $db->table('tb_users')
+                ->select('ID_USER, NAMA_LENGKAP, NO_HP')
+                ->where('ID_USER', $submitterUserId)
+                ->where('AKTIF', 1)
+                ->where('NO_HP IS NOT NULL', null, false)
+                ->where('NO_HP !=', '')
+                ->get()
+                ->getRowArray();
+            if ($submitter) {
+                $users[] = $submitter;
+            }
+        }
+
+        // 2. Ambil akun operator dinas (JENIS_USER = 'User') pada OPD tersebut
+        // PENTING: Hanya JENIS_USER = 'User', tidak boleh mengirim ke Verifikator 1, Verifikator 2, Persetujuan, atau Admin
+        $opdUsers = $db->table('tb_users')
             ->select('ID_USER, NAMA_LENGKAP, NO_HP')
             ->where('KD_UNITKER', $kdSkpd)
+            ->where('JENIS_USER', 'User')
             ->where('AKTIF', 1)
             ->where('NO_HP IS NOT NULL', null, false)
             ->where('NO_HP !=', '')
             ->get()
             ->getResultArray();
 
+        foreach ($opdUsers as $ou) {
+            $exists = false;
+            foreach ($users as $u) {
+                if ($u['ID_USER'] == $ou['ID_USER']) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $users[] = $ou;
+            }
+        }
+
         if (empty($users)) {
-            // Log informative message to tb_wa_logs
             try {
                 $db->table('tb_wa_logs')->insert([
                     'NO_TUJUAN'      => '-',
                     'NAMA_PENERIMA'  => 'Admin OPD (' . $kdSkpd . ')',
                     'PESAN'          => $message,
                     'STATUS'         => 'FAILED',
-                    'RESPON_GATEWAY' => "Peringatan: Tidak ada akun Admin OPD (KD: {$kdSkpd}) dengan Nomor HP terdaftar di Manajemen User.",
+                    'RESPON_GATEWAY' => "Peringatan: Tidak ada akun operator OPD (User) (KD: {$kdSkpd}) dengan Nomor HP terdaftar di Manajemen User.",
                     'CREATED_AT'     => date('Y-m-d H:i:s')
                 ]);
             } catch (\Throwable $e) {}
@@ -298,7 +353,7 @@ class WaGateway
         foreach ($users as $u) {
             $phone = $u['NO_HP'] ?? '';
             if (!empty($phone)) {
-                $res = $this->send($phone, $message, $u['NAMA_LENGKAP'] ?? 'Admin OPD');
+                $res = $this->send($phone, $message, $u['NAMA_LENGKAP'] ?? 'Pengelola Keuangan OPD');
                 if (($res['status'] ?? '') === 'success') {
                     $sentCount++;
                 }
@@ -309,40 +364,46 @@ class WaGateway
     }
 
     /**
-     * Trigger 1: OPD submits new NPD / SPM -> Notifies Verifikasi 1 and sends receipt to OPD
+     * Trigger 1: OPD submits new NPD / SPM -> Notifies assigned Verifikasi 1 and sends receipt to OPD
      */
-    public function notifyNewSubmission(string $type, string $idPengajuan, string $nmSkpd, string $kegiatan, float $anggaran, string $kdSkpd): void
+    public function notifyNewSubmission(string $type, string $idPengajuan, string $nmSkpd, string $kegiatan, float $anggaran, string $kdSkpd, ?int $submitterUserId = null): void
     {
         $formattedNominal = 'Rp ' . number_format($anggaran, 2, ',', '.');
         $date = date('d-m-Y H:i');
 
-        // 1. Notifikasi tugas ke Verifikator 1
-        $messageVerif = "🔔 *NOTIFIKASI SIPEKDA POLMAN*\n"
-            . "Halo Bapak/Ibu *Verifikator 1*,\n\n"
-            . "Terdapat pengajuan baru yang membutuhkan verifikasi Anda:\n"
-            . "• *Jenis*: " . strtoupper($type) . "\n"
+        // 1. Notifikasi tugas khusus untuk Verifikator 1 yang menangani OPD tersebut
+        $messageVerif = "🔔 *PEMBERITAHUAN TUGAS VERIFIKASI - SIPEKDA*\n"
+            . "Yth. Bapak/Ibu *{NAMA_PENERIMA}*\n"
+            . "(Tim Verifikator 1 BPKAD)\n\n"
+            . "Terdapat pengajuan baru dari OPD binaan Anda yang membutuhkan verifikasi:\n"
+            . "• *Jenis Dokumen*: " . strtoupper($type) . "\n"
             . "• *No. Pengajuan*: {$idPengajuan}\n"
-            . "• *OPD*: {$nmSkpd}\n"
+            . "• *OPD Pengaju*: {$nmSkpd}\n"
             . "• *Kegiatan*: {$kegiatan}\n"
-            . "• *Nilai*: {$formattedNominal}\n"
-            . "• *Waktu*: {$date} WITA\n\n"
-            . "Silakan login ke SIPEKDA untuk memeriksa dokumen pengajuan. Terima kasih.";
+            . "• *Total Anggaran*: {$formattedNominal}\n"
+            . "• *Waktu Pengajuan*: {$date} WITA\n\n"
+            . "Silakan masuk ke aplikasi SIPEKDA untuk memeriksa berkas digital dan kelengkapan rincian belanja pengajuan ini.\n"
+            . "Terima kasih.\n\n"
+            . "_SIPEKDA BPKAD Kab. Polewali Mandar_";
 
         $this->sendToRole('Verifikasi 1', $messageVerif, $kdSkpd);
 
-        // 2. Notifikasi konfirmasi tanda terima ke Admin OPD pengirim
-        $messageOpd = "📤 *PENGIRIMAN PENGAJUAN BERHASIL - SIPEKDA*\n"
-            . "Halo Rekan Pengelola Keuangan *{$nmSkpd}*,\n\n"
-            . "Pengajuan Anda telah berhasil dikirim ke BPKAD dan sedang menunggu antrean *Verifikasi 1*:\n"
-            . "• *Jenis*: " . strtoupper($type) . "\n"
+        // 2. Tanda terima pengiriman khusus untuk rekan pengelola keuangan OPD pengaju
+        $messageOpd = "📤 *TANDA TERIMA PENGAJUAN - SIPEKDA*\n"
+            . "Halo Rekan Pengelola Keuangan\n"
+            . "*{$nmSkpd}*,\n\n"
+            . "Pengajuan Anda telah berhasil dikirimkan ke BPKAD dan saat ini berada dalam antrean *Verifikasi 1*:\n"
+            . "• *Jenis Dokumen*: " . strtoupper($type) . "\n"
             . "• *No. Pengajuan*: {$idPengajuan}\n"
             . "• *Kegiatan*: {$kegiatan}\n"
-            . "• *Nilai*: {$formattedNominal}\n"
+            . "• *Total Anggaran*: {$formattedNominal}\n"
             . "• *Status*: Menunggu Verifikasi 1\n"
-            . "• *Waktu*: {$date} WITA\n\n"
-            . "Anda akan menerima notifikasi WhatsApp kembali saat pengajuan diverifikasi/disetujui. Terima kasih.";
+            . "• *Waktu Pengiriman*: {$date} WITA\n\n"
+            . "Notifikasi WhatsApp berikutnya akan dikirimkan secara otomatis setelah pengajuan Anda diverifikasi oleh Tim BPKAD.\n"
+            . "Terima kasih atas kerja samanya.\n\n"
+            . "_SIPEKDA Kab. Polewali Mandar_";
 
-        $this->sendToOpd($kdSkpd, $messageOpd);
+        $this->sendToOpd($kdSkpd, $messageOpd, $submitterUserId);
     }
 
     /**
