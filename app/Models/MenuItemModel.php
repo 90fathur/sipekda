@@ -168,6 +168,148 @@ class MenuItemModel extends Model
                         'ADMIN'         => 1
                     ])->update();
             }
+
+            // 8. Ensure Riwayat Pengajuan exists for Verifikator 1 & 2 (and Admin & Persetujuan) under MASTER_MENU = 15
+            // Clean up legacy rows with MASTER_MENU = 14 for status pengajuan
+            $db->table($this->table)
+                ->where('MASTER_MENU', 14)
+                ->whereIn('NM_ACTION', ['StatusPengajuanHome', 'StatusPengajuanNPDHome'])
+                ->set(['MASTER_MENU' => 15])
+                ->update();
+
+            $db->table($this->table)
+                ->where('MASTER_MENU', 14)
+                ->where('NM_MENU', 'Status NPD / SPM')
+                ->set([
+                    'NM_MENU'       => 'Riwayat Pengajuan',
+                    'KD_MENU'       => 15,
+                    'MASTER_MENU'   => 15,
+                    'ICON'          => 'fa-regular fa-14x fa-clock-rotate-left',
+                    'CHILD'         => 1,
+                    'ADMIN'         => 1,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ])->update();
+
+            // Header Riwayat Pengajuan (MASTER_MENU = 15, KD_MENU = 15)
+            $riwayatHeader = $db->table($this->table)->where('MASTER_MENU', 15)->where('KD_MENU', 15)->get()->getRowArray();
+            if (!$riwayatHeader) {
+                $db->table($this->table)->insert([
+                    'NM_MENU'       => 'Riwayat Pengajuan',
+                    'NM_CONTROLLER' => 'SPM',
+                    'NM_ACTION'     => null,
+                    'KD_MENU'       => 15,
+                    'MASTER_MENU'   => 15,
+                    'CHILD'         => 1,
+                    'PENGATURAN'    => 0,
+                    'DASHBOARD'     => 0,
+                    'ICON'          => 'fa-regular fa-14x fa-clock-rotate-left',
+                    'ADMIN'         => 1,
+                    'USER'          => 0,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ]);
+            } else {
+                $db->table($this->table)->where('ID_MENU', $riwayatHeader['ID_MENU'])->set([
+                    'NM_MENU'       => 'Riwayat Pengajuan',
+                    'NM_CONTROLLER' => 'SPM',
+                    'ICON'          => 'fa-regular fa-14x fa-clock-rotate-left',
+                    'CHILD'         => 1,
+                    'ADMIN'         => 1,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ])->update();
+            }
+
+            // Submenu: Riwayat Pengajuan SPM under MASTER_MENU = 15
+            $subSpm = $db->table($this->table)
+                ->where('MASTER_MENU', 15)
+                ->where('NM_ACTION', 'StatusPengajuanHome')
+                ->get()
+                ->getRowArray();
+            if (!$subSpm) {
+                $db->table($this->table)->insert([
+                    'NM_MENU'       => 'Riwayat Pengajuan SPM',
+                    'NM_CONTROLLER' => 'SPM',
+                    'NM_ACTION'     => 'StatusPengajuanHome',
+                    'KD_MENU'       => 1,
+                    'MASTER_MENU'   => 15,
+                    'CHILD'         => 0,
+                    'PENGATURAN'    => 0,
+                    'DASHBOARD'     => 0,
+                    'ICON'          => '',
+                    'ADMIN'         => 1,
+                    'USER'          => 0,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ]);
+            } else {
+                $db->table($this->table)->where('ID_MENU', $subSpm['ID_MENU'])->set([
+                    'NM_MENU'       => 'Riwayat Pengajuan SPM',
+                    'NM_CONTROLLER' => 'SPM',
+                    'KD_MENU'       => 1,
+                    'MASTER_MENU'   => 15,
+                    'ADMIN'         => 1,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ])->update();
+            }
+
+            // Submenu: Riwayat Pengajuan NPD under MASTER_MENU = 15
+            $subNpd = $db->table($this->table)
+                ->where('MASTER_MENU', 15)
+                ->where('NM_ACTION', 'StatusPengajuanNPDHome')
+                ->get()
+                ->getRowArray();
+            if (!$subNpd) {
+                $db->table($this->table)->insert([
+                    'NM_MENU'       => 'Riwayat Pengajuan NPD',
+                    'NM_CONTROLLER' => 'SPM',
+                    'NM_ACTION'     => 'StatusPengajuanNPDHome',
+                    'KD_MENU'       => 2,
+                    'MASTER_MENU'   => 15,
+                    'CHILD'         => 0,
+                    'PENGATURAN'    => 0,
+                    'DASHBOARD'     => 0,
+                    'ICON'          => '',
+                    'ADMIN'         => 1,
+                    'USER'          => 0,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ]);
+            } else {
+                $db->table($this->table)->where('ID_MENU', $subNpd['ID_MENU'])->set([
+                    'NM_MENU'       => 'Riwayat Pengajuan NPD',
+                    'NM_CONTROLLER' => 'SPM',
+                    'KD_MENU'       => 2,
+                    'MASTER_MENU'   => 15,
+                    'ADMIN'         => 1,
+                    'VERIFIKASI_1'  => 1,
+                    'VERIFIKASI_2'  => 1,
+                    'PERSETUJUAN'   => 1
+                ])->update();
+            }
+
+            // 9. Assign sample OPDs for verifikasi2 if none exist yet in tb_user_role
+            $v2Count = $db->table('tb_user_role')->where('USERNAME', 'verifikasi2')->countAllResults();
+            if ($v2Count === 0) {
+                $v2User = $db->table('tb_users')->where('USER_NAME', 'verifikasi2')->get()->getRowArray();
+                if ($v2User) {
+                    $sampleSkpds = $db->table('tb_user_role')->where('USERNAME', 'verifikasi1')->select('KD_SKPD')->limit(3)->get()->getResultArray();
+                    foreach ($sampleSkpds as $s) {
+                        $db->table('tb_user_role')->insert([
+                            'USERNAME' => 'verifikasi2',
+                            'KD_SKPD'  => $s['KD_SKPD']
+                        ]);
+                    }
+                }
+            }
         } catch (\Throwable $e) {
             // Silently ignore if db is not ready
         }

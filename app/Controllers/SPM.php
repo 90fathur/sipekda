@@ -8,6 +8,7 @@ use App\Models\DataDetailModel;
 use App\Models\SkpdModel;
 use App\Models\MataAnggaranModel;
 use App\Models\RekeningBelanjaModel;
+use App\Models\UserRoleModel;
 
 class SPM extends BaseController
 {
@@ -17,6 +18,7 @@ class SPM extends BaseController
     protected SkpdModel $skpdModel;
     protected MataAnggaranModel $mataAnggaranModel;
     protected RekeningBelanjaModel $rekeningModel;
+    protected UserRoleModel $userRoleModel;
 
     public function __construct()
     {
@@ -26,6 +28,7 @@ class SPM extends BaseController
         $this->skpdModel = new SkpdModel();
         $this->mataAnggaranModel = new MataAnggaranModel();
         $this->rekeningModel = new RekeningBelanjaModel();
+        $this->userRoleModel = new UserRoleModel();
         helper(['url', 'form', 'menu']);
     }
 
@@ -348,11 +351,22 @@ class SPM extends BaseController
         $jenisUser = $loginData['JENIS_USER'];
         $isVerifikator = in_array($jenisUser, ['Verifikasi 1', 'Verifikasi 2']);
 
-        if (!$isVerifikator && $jenisUser !== 'Admin' && $jenisUser !== 'Persetujuan') {
+        if ($isVerifikator) {
+            // Verifikator 1 & 2: riwayat pengajuan berdasarkan OPD yang ditugaskan di tb_user_role
+            $roles = $this->userRoleModel->where('USERNAME', $loginData['USER_NAME'])->findAll();
+            $assignedSkpd = array_values(array_unique(array_filter(array_column($roles, 'KD_SKPD'))));
+
+            if (!empty($assignedSkpd)) {
+                $builder->whereIn('spm.KD_SKPD', $assignedSkpd);
+            } else {
+                // Belum ada mapping SKPD di tb_user_role untuk verifikator ini
+                $builder->where('1 = 0');
+            }
+        } elseif ($jenisUser !== 'Admin' && $jenisUser !== 'Persetujuan') {
+            // User OPD: hanya pengajuan dari OPD sendiri
             $builder->where('spm.KD_SKPD', $loginData['KD_UNITKER']);
-        } elseif ($isVerifikator) {
-            $builder->whereIn('spm.KD_STATUS', [3, 5]);
         }
+        // Admin dan Persetujuan: dapat melihat semua riwayat
 
         $list = $builder->orderBy('spm.TGL_PENGAJUAN', 'DESC')->get()->getResultArray();
         return $this->response->setJSON($list);

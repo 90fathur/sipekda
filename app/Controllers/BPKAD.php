@@ -118,6 +118,9 @@ class BPKAD extends BaseController
             }
             $builder->where('spm.KD_STATUS', 1);
         } elseif ($jenisUser === 'Verifikasi 2') {
+            if (!empty($assignedSkpd)) {
+                $builder->whereIn('spm.KD_SKPD', $assignedSkpd);
+            }
             $builder->where('spm.KD_STATUS', 2);
         } elseif ($jenisUser === 'Persetujuan') {
             $builder->where('spm.KD_STATUS', 3);
