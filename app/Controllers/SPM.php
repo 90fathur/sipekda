@@ -358,9 +358,6 @@ class SPM extends BaseController
 
             if (!empty($assignedSkpd)) {
                 $builder->whereIn('spm.KD_SKPD', $assignedSkpd);
-            } else {
-                // Belum ada mapping SKPD di tb_user_role untuk verifikator ini
-                $builder->where('1 = 0');
             }
         } elseif ($jenisUser !== 'Admin' && $jenisUser !== 'Persetujuan') {
             // User OPD: hanya pengajuan dari OPD sendiri
@@ -549,17 +546,33 @@ class SPM extends BaseController
         $dir = FCPATH . 'uploads/pdf/';
         $result = [];
         if (is_dir($dir)) {
-            $files = glob($dir . $idPengajuan . '_*');
-            foreach ($files as $f) {
-                $base = basename($f);
-                $origName = substr($base, strpos($base, '_') + 1);
-                $result[] = [
-                    'Name'         => $origName,
-                    'FileName'     => $base,
-                    'Size'         => filesize($f),
-                    'Created'      => date('Y-m-d H:i:s', filectime($f)),
-                    'LastModified' => date('Y-m-d H:i:s', filemtime($f))
-                ];
+            $prefixes = [$idPengajuan];
+            if (!empty($idPengajuan)) {
+                $spm = $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->first();
+                if ($spm && !empty($spm['ID_NPD'])) {
+                    $prefixes[] = $spm['ID_NPD'];
+                }
+            }
+            $prefixes = array_unique(array_filter($prefixes));
+
+            $seen = [];
+            foreach ($prefixes as $pfx) {
+                $files = glob($dir . $pfx . '_*');
+                if ($files) {
+                    foreach ($files as $f) {
+                        $base = basename($f);
+                        if (isset($seen[$base])) continue;
+                        $seen[$base] = true;
+                        $origName = substr($base, strpos($base, '_') + 1);
+                        $result[] = [
+                            'Name'         => $origName,
+                            'FileName'     => $base,
+                            'Size'         => filesize($f),
+                            'Created'      => date('Y-m-d H:i:s', filectime($f)),
+                            'LastModified' => date('Y-m-d H:i:s', filemtime($f))
+                        ];
+                    }
+                }
             }
         }
         return $this->response->setJSON($result);
@@ -614,6 +627,12 @@ class SPM extends BaseController
         }
 
         $details = $this->detailModel->where('NO_NPD_SPM', $id)->findAll();
+        if (empty($details) && !empty($id)) {
+            $spm = $this->spmModel->where('ID_PENGAJUAN', $id)->first();
+            if ($spm && !empty($spm['ID_NPD'])) {
+                $details = $this->detailModel->where('NO_NPD_SPM', $spm['ID_NPD'])->findAll();
+            }
+        }
 
         // Auto-heal: jika pengajuan memiliki rekening belanja riil SIPD (kode berawalan 5.),
         // bersihkan otomatis data rincian dummy / nomor uji coba lama (seperti '2', '227', '98') yang tidak sengaja tertinggal

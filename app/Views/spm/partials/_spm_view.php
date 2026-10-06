@@ -181,7 +181,7 @@ function loadViewSpmFiles() {
     $.get('<?= base_url('spm/getallfiles') ?>', { idPengajuan: idPengajuan }, function(files) {
         var tbody = $('#dtFilesView tbody').empty();
         if (!files || files.length === 0) {
-            tbody.append('<tr><td colspan="4" class="text-center text-muted">Tidak ada berkas terlampir</td></tr>';
+            tbody.append('<tr><td colspan="4" class="text-center text-muted">Tidak ada berkas terlampir</td></tr>');
         } else {
             files.forEach(function(f, idx) {
                 var sizeKb = (f.Size / 1024).toFixed(1) + ' KB';
