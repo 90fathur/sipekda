@@ -407,6 +407,48 @@ class WaGateway
     }
 
     /**
+     * Trigger 1b: OPD resubmits revised submission that was previously rejected
+     */
+    public function notifyResubmission(string $type, string $idPengajuan, string $nmSkpd, string $kegiatan, float $anggaran, string $kdSkpd, ?int $submitterUserId = null): void
+    {
+        $formattedNominal = 'Rp ' . number_format($anggaran, 2, ',', '.');
+        $date = date('d-m-Y H:i');
+
+        // 1. Notifikasi ke Verifikator 1 yang menangani OPD
+        $messageVerif = "🔄 *PEMBERITAHUAN REVISI PENGAJUAN - SIPEKDA*\n"
+            . "Yth. Bapak/Ibu *{NAMA_PENERIMA}*\n"
+            . "(Tim Verifikator 1 BPKAD)\n\n"
+            . "Pengajuan yang sebelumnya *Ditolak* telah diperbaiki oleh OPD dan dikirimkan kembali untuk diverifikasi:\n"
+            . "• *Jenis Dokumen*: " . strtoupper($type) . "\n"
+            . "• *No. Pengajuan*: {$idPengajuan}\n"
+            . "• *OPD Pengaju*: {$nmSkpd}\n"
+            . "• *Kegiatan*: {$kegiatan}\n"
+            . "• *Total Anggaran*: {$formattedNominal}\n"
+            . "• *Waktu Kirim*: {$date} WITA\n\n"
+            . "Silakan masuk ke aplikasi SIPEKDA untuk memeriksa kembali berkas digital dan kelengkapan perbaikan pengajuan ini.\n"
+            . "Terima kasih.\n\n"
+            . "_SIPEKDA BPKAD Kab. Polewali Mandar_";
+
+        $this->sendToRole('Verifikasi 1', $messageVerif, $kdSkpd);
+
+        // 2. Tanda terima resubmit untuk rekan pengelola keuangan OPD
+        $messageOpd = "✅ *TANDA TERIMA REVISI PENGAJUAN - SIPEKDA*\n"
+            . "Halo Rekan Pengelola Keuangan\n"
+            . "*{$nmSkpd}*,\n\n"
+            . "Revisi pengajuan Anda telah berhasil dikirimkan kembali ke BPKAD:\n"
+            . "• *Jenis Dokumen*: " . strtoupper($type) . "\n"
+            . "• *No. Pengajuan*: {$idPengajuan}\n"
+            . "• *Total Anggaran*: {$formattedNominal}\n"
+            . "• *Status*: Menunggu Verifikasi Ulang (Verifikasi 1)\n"
+            . "• *Waktu Pengiriman*: {$date} WITA\n\n"
+            . "Berkas perbaikan Anda telah masuk kembali ke antrean Verifikator 1 BPKAD.\n"
+            . "Terima kasih atas kerja samanya.\n\n"
+            . "_SIPEKDA Kab. Polewali Mandar_";
+
+        $this->sendToOpd($kdSkpd, $messageOpd, $submitterUserId);
+    }
+
+    /**
      * Trigger 2: Verification progress (e.g. Verif 1 approved -> notify Verif 2; Verif 2 approved -> notify KBUD)
      */
     public function notifyVerificationProgress(string $type, string $idPengajuan, string $nmSkpd, string $kegiatan, float $anggaran, string $targetRole, string $kdSkpd): void

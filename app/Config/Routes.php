@@ -68,6 +68,10 @@ $routes->group('spm', ['filter' => 'auth'], function ($routes) {
     $routes->group('', ['filter' => 'auth:User,Admin'], function ($routes) {
         $routes->get('pengajuanspmhome', 'SPM::pengajuanSPMHome');
         $routes->get('pengajuannpdhome', 'SPM::pengajuanNPDHome');
+        $routes->get('revisinpd/(:segment)', 'SPM::revisiNPD/$1');
+        $routes->post('saverevisinpd', 'SPM::saveRevisiNPD');
+        $routes->get('revisispm/(:segment)', 'SPM::revisiSPM/$1');
+        $routes->post('saverevisispm', 'SPM::saveRevisiSPM');
         $routes->get('getnpdsukseslist', 'SPM::getNPDSuksesList');
         $routes->get('getviewspm', 'SPM::getViewSPM');
         $routes->post('savepengajuan', 'SPM::savePengajuan');

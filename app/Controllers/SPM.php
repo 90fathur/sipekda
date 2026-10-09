@@ -199,6 +199,135 @@ class SPM extends BaseController
         }
     }
 
+    public function revisiSPM(string $id)
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return redirect()->to(base_url('user/login'));
+        }
+
+        $spm = $this->spmModel->where('ID_PENGAJUAN', $id)->first();
+        if (!$spm) {
+            return redirect()->to(base_url('spm/statuspengajuanhome'))->with('error', 'Data pengajuan SPM tidak ditemukan.');
+        }
+
+        // Cek hak akses OPD
+        if ($loginData['JENIS_USER'] !== 'Admin' && $spm['KD_SKPD'] !== $loginData['KD_UNITKER']) {
+            return redirect()->to(base_url('spm/statuspengajuanhome'))->with('error', 'Anda tidak memiliki hak akses untuk merevisi pengajuan OPD lain.');
+        }
+
+        // Pastikan hanya pengajuan berstatus ditolak (status 5) yang dapat direvisi
+        if ((int)$spm['KD_STATUS'] !== 5) {
+            return redirect()->to(base_url('spm/statuspengajuanhome'))->with('error', 'Hanya pengajuan berstatus Ditolak yang dapat direvisi.');
+        }
+
+        $npd = !empty($spm['ID_NPD']) ? $this->npdModel->where('ID_PENGAJUAN', $spm['ID_NPD'])->first() : null;
+
+        $data = [
+            'Header'              => 'REVISI PENGAJUAN SPP / SPM',
+            'Title'               => 'Revisi SPM',
+            'Keterangan'          => 'Form perbaikan pengajuan SPP/SPM yang ditolak oleh Verifikator BPKAD.',
+            'NAMA_LENGKAP'        => $loginData['NAMA_LENGKAP'],
+            'NM_UNITKER'          => $loginData['NM_UNITKER'],
+            'LAST_LOGIN'          => '[' . date('d-m-Y H:i:s', strtotime($loginData['LAST_LOGIN'] ?? 'now')) . ']',
+            'ListSKPD'            => $this->skpdModel->orderBy('NM_SKPD', 'ASC')->findAll(),
+            'ListMataAnggaran'    => $this->mataAnggaranModel->orderBy('KD_MATA_ANGGARAN', 'ASC')->findAll(),
+            'ListRekeningBelanja' => $this->getRekeningPaguList($spm['KD_SKPD']),
+            'KD_SKPD'             => $spm['KD_SKPD'],
+            'spm'                 => $spm,
+            'npd'                 => $npd
+        ];
+
+        return view('spm/revisi_spm', $data);
+    }
+
+    public function saveRevisiSPM()
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('#Silakan login terlebih dahulu.');
+        }
+
+        try {
+            $idPengajuan = trim((string)$this->request->getPost('ID_PENGAJUAN'));
+            if (empty($idPengajuan)) {
+                return $this->response->setBody('#Nomor ID Pengajuan SPM tidak valid.');
+            }
+
+            $spm = $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->first();
+            if (!$spm) {
+                return $this->response->setBody('#Data pengajuan SPM tidak ditemukan.');
+            }
+
+            if ($loginData['JENIS_USER'] !== 'Admin' && $spm['KD_SKPD'] !== $loginData['KD_UNITKER']) {
+                return $this->response->setBody('#Anda tidak berwenang merevisi pengajuan OPD ini.');
+            }
+
+            if ((int)$spm['KD_STATUS'] !== 5) {
+                return $this->response->setBody('#Hanya pengajuan berstatus Ditolak yang dapat direvisi.');
+            }
+
+            $kegiatan = trim((string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'));
+            if (empty($kegiatan)) {
+                $kegiatan = $spm['NM_PROGRAM_KEGIATAN_SUBKEGIATAN'];
+            }
+
+            $sumberDana = trim($this->request->getPost('KD_SUMBER_DANA') ?? $this->request->getPost('KD_REKENING_BELANJA') ?? '');
+            if (empty($sumberDana)) {
+                $sumberDana = $spm['KD_SUMBER_DANA'] ?: $spm['KD_REKENING_BELANJA'];
+            }
+
+            // Pastikan rincian rekening tersalin ke ID SPM ini jika sebelumnya kosong
+            $details = $this->detailModel->where('NO_NPD_SPM', $idPengajuan)->findAll();
+            if (empty($details) && !empty($spm['ID_NPD'])) {
+                $npdDetails = $this->detailModel->where('NO_NPD_SPM', $spm['ID_NPD'])->findAll();
+                foreach ($npdDetails as $nd) {
+                    $this->detailModel->insert([
+                        'NO_NPD_SPM'          => $idPengajuan,
+                        'KD_REKENING_BELANJA' => $nd['KD_REKENING_BELANJA'],
+                        'NM_REKENING_BELANJA' => $nd['NM_REKENING_BELANJA'],
+                        'ANGGARAN'            => $nd['ANGGARAN']
+                    ]);
+                }
+            }
+
+            // Hitung total anggaran dari tb_data_detail
+            $totalAnggaran = (float)($this->detailModel->where('NO_NPD_SPM', $idPengajuan)
+                ->selectSum('ANGGARAN')
+                ->get()
+                ->getRow()->ANGGARAN ?? 0);
+
+            if ($totalAnggaran <= 0) {
+                $totalAnggaran = (float)$spm['ANGGARAN'];
+            }
+
+            // Update status kembali ke 1 (Menunggu Verifikasi 1), bersihkan alasan penolakan, perbarui waktu & anggaran
+            $updateData = [
+                'NM_PROGRAM_KEGIATAN_SUBKEGIATAN' => $kegiatan,
+                'KD_REKENING_BELANJA'             => $sumberDana,
+                'KD_SUMBER_DANA'                  => $sumberDana,
+                'ANGGARAN'                        => $totalAnggaran,
+                'KD_STATUS'                       => 1,
+                'ALASAN_PENOLAKAN'                => null,
+                'TGL_PENGAJUAN'                   => date('Y-m-d H:i:s')
+            ];
+
+            $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->set($updateData)->update();
+
+            // Notifikasi WhatsApp ke Verifikator 1 dan OPD tanda terima revisi
+            try {
+                $wa = new \App\Libraries\WaGateway();
+                $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
+                $submitterId = !empty($loginData['ID_USER']) ? (int)$loginData['ID_USER'] : null;
+                $wa->notifyResubmission('SPM', $idPengajuan, $nmSkpd, $kegiatan, (float)$totalAnggaran, (string)$spm['KD_SKPD'], $submitterId);
+            } catch (\Throwable $e) {}
+
+            return $this->response->setBody('00');
+        } catch (\Exception $e) {
+            return $this->response->setBody('#' . $e->getMessage());
+        }
+    }
+
     public function pengajuanNPDHome()
     {
         $loginData = $this->getLoginData();
@@ -286,6 +415,119 @@ class SPM extends BaseController
                 $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
                 $submitterId = !empty($loginData['ID_USER']) ? (int)$loginData['ID_USER'] : null;
                 $wa->notifyNewSubmission('NPD', $idNpd, $nmSkpd, (string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'), (float)$total, (string)$loginData['KD_UNITKER'], $submitterId);
+            } catch (\Throwable $e) {}
+
+            return $this->response->setBody('00');
+        } catch (\Exception $e) {
+            return $this->response->setBody('#' . $e->getMessage());
+        }
+    }
+
+    public function revisiNPD(string $id)
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return redirect()->to(base_url('user/login'));
+        }
+
+        $npd = $this->npdModel->where('ID_PENGAJUAN', $id)->first();
+        if (!$npd) {
+            return redirect()->to(base_url('spm/statuspengajuannpdhome'))->with('error', 'Data pengajuan NPD tidak ditemukan.');
+        }
+
+        // Cek hak akses OPD
+        if ($loginData['JENIS_USER'] !== 'Admin' && $npd['KD_SKPD'] !== $loginData['KD_UNITKER']) {
+            return redirect()->to(base_url('spm/statuspengajuannpdhome'))->with('error', 'Anda tidak memiliki hak akses untuk merevisi pengajuan OPD lain.');
+        }
+
+        // Pastikan hanya pengajuan berstatus ditolak (status 5) yang dapat direvisi
+        if ((int)$npd['KD_STATUS'] !== 5) {
+            return redirect()->to(base_url('spm/statuspengajuannpdhome'))->with('error', 'Hanya pengajuan berstatus Ditolak yang dapat direvisi.');
+        }
+
+        $data = [
+            'Header'              => 'REVISI PENGAJUAN NPD',
+            'Title'               => 'Revisi NPD',
+            'Keterangan'          => 'Form perbaikan pengajuan NPD yang ditolak oleh Verifikator BPKAD.',
+            'NAMA_LENGKAP'        => $loginData['NAMA_LENGKAP'],
+            'NM_UNITKER'          => $loginData['NM_UNITKER'],
+            'LAST_LOGIN'          => '[' . date('d-m-Y H:i:s', strtotime($loginData['LAST_LOGIN'] ?? 'now')) . ']',
+            'ListSKPD'            => $this->skpdModel->orderBy('NM_SKPD', 'ASC')->findAll(),
+            'ListMataAnggaran'    => $this->mataAnggaranModel->orderBy('KD_MATA_ANGGARAN', 'ASC')->findAll(),
+            'ListRekeningBelanja' => $this->getRekeningPaguList($npd['KD_SKPD']),
+            'KD_SKPD'             => $npd['KD_SKPD'],
+            'npd'                 => $npd
+        ];
+
+        return view('spm/revisi_npd', $data);
+    }
+
+    public function saveRevisiNPD()
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('#Silakan login terlebih dahulu.');
+        }
+
+        try {
+            $idPengajuan = trim((string)$this->request->getPost('ID_PENGAJUAN'));
+            if (empty($idPengajuan)) {
+                return $this->response->setBody('#Nomor ID Pengajuan tidak valid.');
+            }
+
+            $npd = $this->npdModel->where('ID_PENGAJUAN', $idPengajuan)->first();
+            if (!$npd) {
+                return $this->response->setBody('#Data pengajuan NPD tidak ditemukan.');
+            }
+
+            if ($loginData['JENIS_USER'] !== 'Admin' && $npd['KD_SKPD'] !== $loginData['KD_UNITKER']) {
+                return $this->response->setBody('#Anda tidak berwenang merevisi pengajuan OPD ini.');
+            }
+
+            if ((int)$npd['KD_STATUS'] !== 5) {
+                return $this->response->setBody('#Hanya pengajuan berstatus Ditolak yang dapat direvisi.');
+            }
+
+            $kegiatan = trim((string)$this->request->getPost('NM_PROGRAM_KEGIATAN_SUBKEGIATAN'));
+            if (empty($kegiatan)) {
+                return $this->response->setBody('#Program / Kegiatan / Sub Kegiatan wajib diisi.');
+            }
+
+            $sumberDana = trim($this->request->getPost('KD_SUMBER_DANA') ?? $this->request->getPost('KD_REKENING_BELANJA') ?? '');
+            if (empty($sumberDana)) {
+                return $this->response->setBody('#Sumber Dana wajib diisi.');
+            }
+
+            // Hitung total rincian belanja yang aktif untuk pengajuan ini
+            $details = $this->detailModel->where('NO_NPD_SPM', $idPengajuan)->findAll();
+            if (empty($details)) {
+                return $this->response->setBody('#Rincian rekening belanja tidak boleh kosong. Silakan tambahkan minimal 1 rincian belanja.');
+            }
+
+            $totalAnggaran = 0;
+            foreach ($details as $d) {
+                $totalAnggaran += (float)$d['ANGGARAN'];
+            }
+
+            // Update status kembali ke 1 (Menunggu Verifikasi 1), bersihkan alasan penolakan, perbarui waktu pengajuan & anggaran
+            $updateData = [
+                'NM_PROGRAM_KEGIATAN_SUBKEGIATAN' => $kegiatan,
+                'KD_REKENING_BELANJA'             => $sumberDana,
+                'KD_SUMBER_DANA'                  => $sumberDana,
+                'ANGGARAN'                        => $totalAnggaran,
+                'KD_STATUS'                       => 1,
+                'ALASAN_PENOLAKAN'                => null,
+                'TGL_PENGAJUAN'                   => date('Y-m-d H:i:s')
+            ];
+
+            $this->npdModel->where('ID_PENGAJUAN', $idPengajuan)->set($updateData)->update();
+
+            // Notifikasi WhatsApp ke Verifikator 1 dan OPD tanda terima revisi
+            try {
+                $wa = new \App\Libraries\WaGateway();
+                $nmSkpd = $loginData['NM_UNITKER'] ?? 'OPD';
+                $submitterId = !empty($loginData['ID_USER']) ? (int)$loginData['ID_USER'] : null;
+                $wa->notifyResubmission('NPD', $idPengajuan, $nmSkpd, $kegiatan, (float)$totalAnggaran, (string)$npd['KD_SKPD'], $submitterId);
             } catch (\Throwable $e) {}
 
             return $this->response->setBody('00');
@@ -453,8 +695,13 @@ class SPM extends BaseController
             }
             $cleanName = substr($cleanName, 0, 50);
 
-            $cleanUsername = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME']);
-            $filename = $cleanUsername . '_' . $cleanName . '.' . $ext;
+            $idTarget = $this->request->getPost('idPengajuan') ?? $this->request->getGet('idPengajuan');
+            if (!empty($idTarget)) {
+                $cleanPrefix = preg_replace('/[^a-zA-Z0-9_\-\.]/', '', $idTarget);
+            } else {
+                $cleanPrefix = preg_replace('/[^a-zA-Z0-9_\-]/', '', $loginData['USER_NAME']);
+            }
+            $filename = $cleanPrefix . '_' . $cleanName . '.' . $ext;
 
             $file->move($uploadDir, $filename, true);
 
@@ -521,7 +768,8 @@ class SPM extends BaseController
                 $spm = $this->spmModel->where('ID_PENGAJUAN', $idPengajuan)->first();
                 $skpdPengajuan = $npd['KD_SKPD'] ?? ($spm['KD_SKPD'] ?? '');
 
-                if (!empty($skpdPengajuan) && !empty($userUnit) && $skpdPengajuan === $userUnit) {
+                $itemStatus = (int)($npd['KD_STATUS'] ?? ($spm['KD_STATUS'] ?? 0));
+                if (!empty($skpdPengajuan) && !empty($userUnit) && $skpdPengajuan === $userUnit && in_array($itemStatus, [1, 5], true)) {
                     $allowed = true;
                 }
             }
@@ -675,8 +923,36 @@ class SPM extends BaseController
         try {
             $kdRekening = $this->request->getPost('KD_REKENING_BELANJA');
             $anggaran = (float)$this->request->getPost('ANGGARAN');
+            $targetNo = trim((string)($this->request->getPost('NO_NPD_SPM') ?? ''));
+            if (empty($targetNo)) {
+                $targetNo = (string)$loginData['ID_USER'];
+            }
 
-            $rekList = $this->getRekeningPaguList();
+            $isSubmitted = ($targetNo !== (string)$loginData['ID_USER']);
+            $npd = null;
+            $spm = null;
+            if ($isSubmitted) {
+                $allowedRoles = ['Admin', 'Verifikasi 1', 'Verifikasi 2', 'Persetujuan'];
+                $allowed = in_array($loginData['JENIS_USER'], $allowedRoles, true);
+
+                if (!$allowed) {
+                    $npd = $this->npdModel->where('ID_PENGAJUAN', $targetNo)->first();
+                    $spm = $this->spmModel->where('ID_PENGAJUAN', $targetNo)->first();
+                    $itemStatus = (int)($npd['KD_STATUS'] ?? ($spm['KD_STATUS'] ?? 0));
+                    $itemSkpd = $npd['KD_SKPD'] ?? ($spm['KD_SKPD'] ?? '');
+
+                    if (in_array($itemStatus, [1, 5], true) && !empty($loginData['KD_UNITKER']) && $itemSkpd === $loginData['KD_UNITKER']) {
+                        $allowed = true;
+                    }
+                }
+
+                if (!$allowed) {
+                    return $this->response->setBody('#Anda tidak memiliki izin menambah rincian pada pengajuan ini.');
+                }
+            }
+
+            $targetSkpd = $npd['KD_SKPD'] ?? ($spm['KD_SKPD'] ?? null);
+            $rekList = $this->getRekeningPaguList($targetSkpd);
             $rekFound = null;
             foreach ($rekList as $r) {
                 if ($r['KD_REKENING_BELANJA'] === $kdRekening) {
@@ -688,25 +964,36 @@ class SPM extends BaseController
             $nmRekening = '-';
             if ($rekFound) {
                 $nmRekening = $rekFound['NM_REKENING_BELANJA'];
-                // Check draft details sum
-                $draftSum = (float)($this->detailModel->where('NO_NPD_SPM', (string)$loginData['ID_USER'])
+                // Check details sum for this target
+                $existingSum = (float)($this->detailModel->where('NO_NPD_SPM', $targetNo)
                     ->where('KD_REKENING_BELANJA', $kdRekening)
                     ->selectSum('ANGGARAN')
                     ->get()
                     ->getRow()->ANGGARAN ?? 0);
 
-                $sisa = (float)$rekFound['SISA_PAGU'] - $draftSum;
+                $sisa = (float)$rekFound['SISA_PAGU'] - $existingSum;
                 if ($sisa < $anggaran) {
                     return $this->response->setBody('#Sisa pagu tidak cukup. Sisa: Rp ' . number_format($sisa, 2, ',', '.'));
                 }
             }
 
             $this->detailModel->insert([
-                'NO_NPD_SPM'          => (string)$loginData['ID_USER'],
+                'NO_NPD_SPM'          => $targetNo,
                 'KD_REKENING_BELANJA' => $kdRekening,
                 'NM_REKENING_BELANJA' => $nmRekening,
                 'ANGGARAN'            => $anggaran
             ]);
+
+            if ($isSubmitted) {
+                $db = \Config\Database::connect();
+                $newTotal = (float)($db->table('tb_data_detail')
+                    ->where('NO_NPD_SPM', $targetNo)
+                    ->selectSum('ANGGARAN')
+                    ->get()
+                    ->getRow()->ANGGARAN ?? 0);
+                $db->table('tb_npd')->where('ID_PENGAJUAN', $targetNo)->set(['ANGGARAN' => $newTotal])->update();
+                $db->table('tb_spm')->where('ID_PENGAJUAN', $targetNo)->set(['ANGGARAN' => $newTotal])->update();
+            }
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {
@@ -740,14 +1027,14 @@ class SPM extends BaseController
             $allowedRoles = ['Admin', 'Verifikasi 1', 'Verifikasi 2', 'Persetujuan'];
             $allowed = in_array($loginData['JENIS_USER'], $allowedRoles, true);
 
-            // OPD pemilik pengajuan boleh menghapus jika pengajuan masih status 1 (Menunggu Verifikasi 1)
+            // OPD pemilik pengajuan boleh menghapus jika pengajuan masih status 1 (Menunggu Verifikasi 1) atau status 5 (Ditolak / Revisi)
             if (!$allowed) {
                 $npd = $this->npdModel->where('ID_PENGAJUAN', $noNpdSpm)->first();
                 $spm = $this->spmModel->where('ID_PENGAJUAN', $noNpdSpm)->first();
                 $itemStatus = (int)($npd['KD_STATUS'] ?? ($spm['KD_STATUS'] ?? 0));
                 $itemSkpd = $npd['KD_SKPD'] ?? ($spm['KD_SKPD'] ?? '');
 
-                if ($itemStatus === 1 && !empty($loginData['KD_UNITKER']) && $itemSkpd === $loginData['KD_UNITKER']) {
+                if (in_array($itemStatus, [1, 5], true) && !empty($loginData['KD_UNITKER']) && $itemSkpd === $loginData['KD_UNITKER']) {
                     $allowed = true;
                 }
             }
@@ -778,13 +1065,13 @@ class SPM extends BaseController
         ]);
     }
 
-    public function getRekeningPaguList(): array
+    public function getRekeningPaguList(?string $overrideSkpd = null): array
     {
         $loginData = $this->getLoginData();
         $builder = $this->rekeningModel->builder();
         $db = \Config\Database::connect();
-        if ($loginData && $loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {
-            $targetUnit = $loginData['KD_UNITKER'];
+        $targetUnit = $overrideSkpd ?? (($loginData && $loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) ? $loginData['KD_UNITKER'] : null);
+        if (!empty($targetUnit)) {
             $shortPrefix = preg_replace('/(\.0000)+$/', '', $targetUnit);
             $skpdRow = $db->table('ms_skpd')->where('KD_SKPD', $targetUnit)->get()->getRowArray();
             $nmUnit = $skpdRow['NM_SKPD'] ?? ($loginData['NM_UNITKER'] ?? '');
@@ -825,8 +1112,8 @@ class SPM extends BaseController
             ->whereIn('KD_STATUS', [3, 4])
             ->where('YEAR(TGL_PENGAJUAN)', $currentYear);
 
-        if ($loginData && $loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {
-            $spmQuery->where('KD_SKPD', $loginData['KD_UNITKER']);
+        if (!empty($targetUnit)) {
+            $spmQuery->where('KD_SKPD', $targetUnit);
         }
         $approvedSpm = $spmQuery->get()->getResultArray();
 

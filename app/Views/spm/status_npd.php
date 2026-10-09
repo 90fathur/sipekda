@@ -17,9 +17,9 @@
                                 <th class="text-center" style="width: 12%;">Tanggal</th>
                                 <th class="text-center" style="width: 20%;">Nama OPD</th>
                                 <th class="text-center" style="width: 23%;">Program / Kegiatan</th>
-                                <th class="text-center" style="width: 13%;">Nominal (Rp)</th>
-                                <th class="text-center" style="width: 12%;">Status</th>
-                                <th class="text-center" style="width: 8%;">Detail</th>
+                                <th class="text-center" style="width: 10%;">Nominal (Rp)</th>
+                                <th class="text-center" style="width: 11%;">Status</th>
+                                <th class="text-center" style="width: 12%;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -90,9 +90,13 @@ function loadStatusNPD() {
             },
             {
                 data: null,
-                className: 'text-center',
+                className: 'text-center text-nowrap',
                 render: function(row) {
-                    return '<button type="button" class="btn btn-xs btn-primary" onclick="openNPDDetail(\'' + row.ID_PENGAJUAN + '\')"><i class="fa fa-eye"></i></button>';
+                    var html = '<button type="button" class="btn btn-xs btn-primary" onclick="openNPDDetail(\'' + row.ID_PENGAJUAN + '\')" title="Lihat Detail"><i class="fa fa-eye"></i></button>';
+                    if (parseInt(row.KD_STATUS) === 5) {
+                        html += ' <a href="<?= base_url('spm/revisinpd') ?>/' + encodeURIComponent(row.ID_PENGAJUAN) + '" class="btn btn-xs btn-warning ml-1" title="Perbaiki / Revisi Pengajuan"><i class="fa fa-pencil"></i> Revisi</a>';
+                    }
+                    return html;
                 }
             }
         ],
