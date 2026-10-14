@@ -108,8 +108,13 @@
                         <?php if ((int)($spm['KD_STATUS'] ?? 0) === 4): ?>
                             <div class="alert alert-primary text-center font-bold mb-0" style="background-color: #1ab394; color: #fff;">
                                 <i class="fa fa-check-circle fa-2x"></i><br>
-                                <span style="font-size: 15px;">SPM INI TELAH DIVERIFIKASI &amp; DISETUJUI</span>
+                                <span style="font-size: 15px;">SPM INI TELAH SELESAI DIPERIKSA &amp; DIVERIFIKASI</span>
                                 <br><small><i class="fa fa-calendar"></i> Waktu Verifikasi: <?= !empty($spm['TGL_VEIFIKASI']) ? date('d-m-Y H:i', strtotime($spm['TGL_VEIFIKASI'])) : '-' ?></small>
+                                <div class="mt-3">
+                                    <button type="button" id="btnBatalVerif" class="btn btn-sm btn-white text-danger font-bold shadow-sm">
+                                        <i class="fa fa-undo"></i> Batalkan Verifikasi
+                                    </button>
+                                </div>
                             </div>
                         <?php elseif ((int)($spm['KD_STATUS'] ?? 0) === 5): ?>
                             <div class="alert alert-danger text-center font-bold mb-0">
@@ -179,6 +184,25 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 Reject($('#ID_PENGAJUAN').val(), result.value);
+            }
+        });
+    });
+
+    $('#btnBatalVerif').on('click', function (e) {
+        Swal.fire({
+            title: 'Batalkan Verifikasi?',
+            text: 'Status pengajuan akan dikembalikan ke Menunggu Persetujuan.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fa fa-undo"></i> Ya, Batalkan Verifikasi',
+            cancelButtonText: 'Kembali',
+            confirmButtonColor: '#ed5565',
+            cancelButtonColor: '#c2c2c2'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (typeof Unaccept === 'function') {
+                    Unaccept($('#ID_PENGAJUAN').val());
+                }
             }
         });
     });

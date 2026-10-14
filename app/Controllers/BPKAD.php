@@ -234,6 +234,34 @@ class BPKAD extends BaseController
         }
     }
 
+    public function unacceptPengajuan()
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('Login');
+        }
+
+        try {
+            $id = $this->request->getPost('id');
+            $spm = $this->spmModel->where('ID_PENGAJUAN', $id)->first();
+            if (!$spm) {
+                return $this->response->setBody('#Data tidak ditemukan.');
+            }
+
+            // Kembalikan status ke Menunggu Persetujuan (KD_STATUS = 3)
+            $this->spmModel->where('ID_PENGAJUAN', $id)->set([
+                'KD_STATUS'        => 3,
+                'TGL_VEIFIKASI'    => null,
+                'TGL_SP2D'         => null,
+                'ALASAN_PENOLAKAN' => null
+            ])->update();
+
+            return $this->response->setBody('00');
+        } catch (\Exception $e) {
+            return $this->response->setBody('#' . $e->getMessage());
+        }
+    }
+
     public function acceptPengajuanNPD()
     {
         $loginData = $this->getLoginData();
@@ -322,6 +350,34 @@ class BPKAD extends BaseController
                     $wa->notifyRejection('NPD', $id, $nmSkpd, $kegiatan, $anggaran, (string)$alasan, $kdSkpd);
                 } catch (\Throwable $e) {}
             }
+
+            return $this->response->setBody('00');
+        } catch (\Exception $e) {
+            return $this->response->setBody('#' . $e->getMessage());
+        }
+    }
+
+    public function unacceptPengajuanNPD()
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('Login');
+        }
+
+        try {
+            $id = $this->request->getPost('id');
+            $npd = $this->npdModel->where('ID_PENGAJUAN', $id)->first();
+            if (!$npd) {
+                return $this->response->setBody('#Data tidak ditemukan.');
+            }
+
+            // Kembalikan status ke Menunggu Persetujuan (KD_STATUS = 3)
+            $this->npdModel->where('ID_PENGAJUAN', $id)->set([
+                'KD_STATUS'        => 3,
+                'TGL_VEIFIKASI'    => null,
+                'TGL_SP2D'         => null,
+                'ALASAN_PENOLAKAN' => null
+            ])->update();
 
             return $this->response->setBody('00');
         } catch (\Exception $e) {

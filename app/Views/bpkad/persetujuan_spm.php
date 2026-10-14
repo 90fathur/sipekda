@@ -1,5 +1,61 @@
 <?= $this->extend('layout/main') ?>
 
+<?= $this->section('styles') ?>
+<style>
+    /* Styling baris tabel berdasarkan status pemeriksaan */
+    .row-verified {
+        background-color: #e8f8f5 !important;
+        border-left: 5px solid #1ab394 !important;
+        transition: background-color 0.3s ease;
+    }
+    .row-verified td {
+        background-color: transparent !important;
+    }
+    .row-verified:hover {
+        background-color: #d1f2eb !important;
+    }
+
+    .row-pending {
+        border-left: 5px solid #f8ac59 !important;
+        transition: background-color 0.3s ease;
+    }
+
+    .row-rejected {
+        background-color: #fdf2f2 !important;
+        border-left: 5px solid #ed5565 !important;
+        opacity: 0.85;
+    }
+    .row-rejected td {
+        background-color: transparent !important;
+    }
+
+    .chk-verif-spm {
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        accent-color: #1ab394;
+        vertical-align: middle;
+        margin: 0;
+        transform: scale(1.15);
+    }
+    .chk-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+    }
+    .legend-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 4px;
+    }
+</style>
+<?= $this->endSection() ?>
+
 <?= $this->section('content') ?>
 <div class="wrapper wrapper-content">
     <div class="row animated fadeInRight">
@@ -10,11 +66,19 @@
                     <h5 class="typewriter"><?= esc($Keterangan) ?></h5>
                 </div>
                 <div class="ibox-content">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div class="btn-group" role="group" id="btnGroupFilter">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <div class="btn-group mb-2" role="group" id="btnGroupFilter">
                             <button type="button" class="btn btn-sm btn-primary active btn-filter" data-status="">Semua Pengajuan</button>
                             <button type="button" class="btn btn-sm btn-white btn-filter" data-status="Menunggu"><i class="fa fa-clock-o text-warning"></i> Menunggu Persetujuan</button>
-                            <button type="button" class="btn btn-sm btn-white btn-filter" data-status="Diverifikasi"><i class="fa fa-check text-navy font-bold"></i> Sudah Diverifikasi</button>
+                            <button type="button" class="btn btn-sm btn-white btn-filter" data-status="Diverifikasi"><i class="fa fa-check text-navy font-bold"></i> Selesai Diperiksa</button>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center mb-2" style="gap: 8px;">
+                            <span class="legend-indicator" style="background-color: #e8f8f5; color: #1ab394; border: 1px solid #1ab394;">
+                                <i class="fa fa-check-square"></i> Centang Hijau: Selesai Diperiksa
+                            </span>
+                            <span class="legend-indicator" style="background-color: #fffbf0; color: #f8ac59; border: 1px solid #f8ac59;">
+                                <i class="fa fa-square-o"></i> Kotak Kosong: Menunggu Diperiksa
+                            </span>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -22,12 +86,13 @@
                             <thead>
                                 <tr>
                                     <th class="text-center" style="width: 4%;">No</th>
-                                    <th class="text-center" style="width: 15%;">ID Pengajuan</th>
+                                    <th class="text-center" style="width: 8%;">Selesai<br>Diperiksa</th>
+                                    <th class="text-center" style="width: 14%;">ID Pengajuan</th>
                                     <th class="text-center" style="width: 9%;">Tanggal</th>
-                                    <th class="text-center" style="width: 20%;">Nama OPD</th>
-                                    <th class="text-center" style="width: 22%;">Program Kegiatan / Sub Kegiatan</th>
+                                    <th class="text-center" style="width: 18%;">Nama OPD</th>
+                                    <th class="text-center" style="width: 20%;">Program Kegiatan / Sub Kegiatan</th>
                                     <th class="text-center" style="width: 12%;">Anggaran</th>
-                                    <th class="text-center" style="width: 12%;">Status Verifikasi</th>
+                                    <th class="text-center" style="width: 11%;">Status Verifikasi</th>
                                     <th class="text-center" style="width: 6%;">Opsi</th>
                                 </tr>
                             </thead>
@@ -54,7 +119,7 @@
             $(this).removeClass('btn-white').addClass('active btn-primary');
 
             var filterVal = $(this).data('status');
-            $('#dtDaftar').DataTable().column(6).search(filterVal).draw();
+            $('#dtDaftar').DataTable().column(7).search(filterVal).draw();
         });
     });
 
@@ -69,15 +134,46 @@
                 type: 'GET',
                 data: { IsNPD: false }
             },
+            createdRow: function (row, data, dataIndex) {
+                var s = parseInt(data.KD_STATUS);
+                if (s === 4) {
+                    $(row).addClass('row-verified');
+                } else if (s === 3) {
+                    $(row).addClass('row-pending');
+                } else if (s === 5) {
+                    $(row).addClass('row-rejected');
+                }
+            },
             columns: [
                 {
-                    data: null, className: 'text-center', width: '4%', render: function (data, type, row, meta) {
+                    data: null, className: 'text-center align-middle', width: '4%', render: function (data, type, row, meta) {
                         return meta.row + 1;
+                    }
+                },
+                {
+                    data: 'KD_STATUS',
+                    className: 'text-center align-middle',
+                    width: '8%',
+                    orderable: false,
+                    render: function (s, type, row) {
+                        s = parseInt(s);
+                        if (s === 4) {
+                            return '<div class="chk-container" title="Sudah diverifikasi (Klik untuk membatalkan)">' +
+                                   '<input type="checkbox" class="chk-verif-spm" data-id="' + row.ID_PENGAJUAN + '" checked />' +
+                                   '</div>';
+                        } else if (s === 3) {
+                            return '<div class="chk-container" title="Klik untuk mencentang jika selesai diperiksa">' +
+                                   '<input type="checkbox" class="chk-verif-spm" data-id="' + row.ID_PENGAJUAN + '" />' +
+                                   '</div>';
+                        } else if (s === 5) {
+                            return '<span class="badge badge-danger" title="Pengajuan Ditolak"><i class="fa fa-times"></i> Ditolak</span>';
+                        }
+                        return '<input type="checkbox" disabled style="opacity: 0.3;" />';
                     }
                 },
                 { 
                     data: 'ID_PENGAJUAN', 
-                    className: 'text-center font-bold text-nowrap',
+                    className: 'text-center font-bold text-nowrap align-middle',
                     render: function (data, type, row) {
                         var icon = '';
                         if (parseInt(row.KD_STATUS) === 4) {
@@ -86,14 +182,14 @@
                         return icon + '<span class="id">' + data + '</span>';
                     }
                 },
-                { data: 'TGL_PENGAJUAN', className: 'text-center', render: function (d) { return d ? moment(d).format("DD-MM-YYYY") : '-' } },
-                { data: 'KD_SKPD', className: 'text-left' },
-                { data: 'NM_PROGRAM_KEGIATAN_SUBKEGIATAN', className: 'text-left' },
-                { data: 'ANGGARAN', className: 'text-right font-bold', render: $.fn.dataTable.render.number('.', ',', 2) },
+                { data: 'TGL_PENGAJUAN', className: 'text-center align-middle', render: function (d) { return d ? moment(d).format("DD-MM-YYYY") : '-' } },
+                { data: 'KD_SKPD', className: 'text-left align-middle' },
+                { data: 'NM_PROGRAM_KEGIATAN_SUBKEGIATAN', className: 'text-left align-middle' },
+                { data: 'ANGGARAN', className: 'text-right font-bold align-middle', render: $.fn.dataTable.render.number('.', ',', 2) },
                 {
                     data: 'KD_STATUS',
-                    className: 'text-center text-nowrap',
-                    width: '12%',
+                    className: 'text-center text-nowrap align-middle',
+                    width: '11%',
                     render: function (s, type, row) {
                         s = parseInt(s);
                         if (s === 4) {
@@ -112,7 +208,7 @@
                 },
                 {
                     data: null,
-                    className: 'text-center',
+                    className: 'text-center align-middle',
                     width: '6%',
                     render: function(data, type, row) {
                         return '<button type="button" class="btn btn-xs btn-info btn-outline btn-detail" data-id="' + row.ID_PENGAJUAN + '" data-toggle="tooltip" data-placement="top" title="Detail"><i class="fa fa-search"></i> Detail</button>';
@@ -132,11 +228,105 @@
         });
     }
 
+    // Event interaktif saat akun Persetujuan mencentang atau membatalkan centang
+    $('#dtDaftar').on('click', '.chk-verif-spm', function (e) {
+        e.stopPropagation();
+        var chk = $(this);
+        var id = chk.data('id');
+        var isChecking = chk.is(':checked');
+
+        if (isChecking) {
+            Swal.fire({
+                title: 'Selesai Diperiksa?',
+                html: 'Tandai SPM <b>' + id + '</b> telah selesai diperiksa dan verifikasi/setujui pengajuan ini?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#1ab394',
+                cancelButtonColor: '#c2c2c2',
+                confirmButtonText: '<i class="fa fa-check"></i> Ya, Selesai & Verifikasi',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('<?= base_url('bpkad/acceptpengajuan') ?>', { id: id }, function (resp) {
+                        if (resp.trim() === '00') {
+                            Swal.fire({
+                                title: 'Berhasil!',
+                                text: 'SPM ' + id + ' telah diverifikasi & selesai diperiksa.',
+                                icon: 'success',
+                                timer: 1600,
+                                showConfirmButton: false
+                            });
+                            Reload();
+                            if ($('#ID_PENGAJUAN').val() === id) {
+                                Detail(id);
+                            }
+                        } else {
+                            chk.prop('checked', false);
+                            Swal.fire('Gagal', resp.replace('#', '') || 'Gagal memproses verifikasi.', 'error');
+                        }
+                    }).fail(function() {
+                        chk.prop('checked', false);
+                        Swal.fire('Kesalahan', 'Terjadi kesalahan sistem saat memproses verifikasi.', 'error');
+                    });
+                } else {
+                    chk.prop('checked', false);
+                }
+            });
+        } else {
+            Swal.fire({
+                title: 'Batalkan Verifikasi?',
+                html: 'Apakah Anda ingin membatalkan status verifikasi SPM <b>' + id + '</b> dan mengembalikannya ke status <b>Menunggu Persetujuan</b>?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ed5565',
+                cancelButtonColor: '#c2c2c2',
+                confirmButtonText: '<i class="fa fa-undo"></i> Ya, Batalkan Verifikasi',
+                cancelButtonText: 'Tetap Diverifikasi'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('<?= base_url('bpkad/unacceptpengajuan') ?>', { id: id }, function (resp) {
+                        if (resp.trim() === '00') {
+                            Swal.fire({
+                                title: 'Dibatalkan',
+                                text: 'Status SPM ' + id + ' dikembalikan ke Menunggu Persetujuan.',
+                                icon: 'info',
+                                timer: 1600,
+                                showConfirmButton: false
+                            });
+                            Reload();
+                            if ($('#ID_PENGAJUAN').val() === id) {
+                                Detail(id);
+                            }
+                        } else {
+                            chk.prop('checked', true);
+                            Swal.fire('Gagal', resp.replace('#', '') || 'Gagal membatalkan status verifikasi.', 'error');
+                        }
+                    }).fail(function() {
+                        chk.prop('checked', true);
+                        Swal.fire('Kesalahan', 'Terjadi kesalahan sistem saat membatalkan verifikasi.', 'error');
+                    });
+                } else {
+                    chk.prop('checked', true);
+                }
+            });
+        }
+    });
+
     function Accept(id) {
         $.post('<?= base_url('bpkad/acceptpengajuan') ?>', { id: id }, function (data) {
             Swal.fire('Informasi', 'Pengajuan telah di setujui.', 'success');
             Reload();
             $('#dvView').empty();
+        });
+    }
+
+    function Unaccept(id) {
+        $.post('<?= base_url('bpkad/unacceptpengajuan') ?>', { id: id }, function (data) {
+            Swal.fire('Informasi', 'Status verifikasi pengajuan telah dibatalkan.', 'info');
+            Reload();
+            if ($('#ID_PENGAJUAN').val() === id) {
+                Detail(id);
+            }
         });
     }
 

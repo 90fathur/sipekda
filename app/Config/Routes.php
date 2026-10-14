@@ -104,8 +104,10 @@ $routes->group('bpkad', function ($routes) {
         $routes->get('persetujuannpdhome', 'BPKAD::persetujuanNPDHome');
         $routes->get('getlistpengajuan', 'BPKAD::getListPengajuan');
         $routes->post('acceptpengajuan', 'BPKAD::acceptPengajuan');
+        $routes->post('unacceptpengajuan', 'BPKAD::unacceptPengajuan');
         $routes->post('rejectpengajuan', 'BPKAD::rejectPengajuan');
         $routes->post('acceptpengajuannpd', 'BPKAD::acceptPengajuanNPD');
+        $routes->post('unacceptpengajuannpd', 'BPKAD::unacceptPengajuanNPD');
         $routes->post('rejectpengajuannpd', 'BPKAD::rejectPengajuanNPD');
         $routes->get('getstatussipd', 'BPKAD::getStatusSIPD');
         $routes->get('spmview', 'BPKAD::spmView');
