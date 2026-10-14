@@ -58,7 +58,17 @@ function loadStatusSPM() {
                     return meta.row + 1;
                 }
             },
-            { data: 'ID_PENGAJUAN', className: 'font-bold text-center' },
+            { 
+                data: 'ID_PENGAJUAN', 
+                className: 'font-bold text-center text-nowrap',
+                render: function(data, type, row) {
+                    var icon = '';
+                    if (parseInt(row.KD_STATUS) === 4) {
+                        icon = '<i class="fa fa-check-circle text-navy mr-1" title="Sudah Diverifikasi"></i> ';
+                    }
+                    return icon + data;
+                }
+            },
             {
                 data: 'TGL_PENGAJUAN',
                 className: 'text-center',
@@ -77,13 +87,13 @@ function loadStatusSPM() {
             },
             {
                 data: 'KD_STATUS',
-                className: 'text-center',
+                className: 'text-center text-nowrap',
                 render: function(s, type, row) {
                     s = parseInt(s);
                     if (s === 1) return '<span class="badge badge-info">Verifikasi 1</span>';
                     if (s === 2) return '<span class="badge badge-warning">Verifikasi 2</span>';
                     if (s === 3) return '<span class="badge badge-primary">Menunggu Persetujuan</span>';
-                    if (s === 4) return '<span class="badge badge-success">Selesai / SP2D</span>';
+                    if (s === 4) return '<span class="badge badge-success font-bold"><i class="fa fa-check"></i> Selesai / SP2D</span>';
                     if (s === 5) return '<span class="badge badge-danger" title="' + (row.ALASAN_PENOLAKAN || 'Ditolak') + '">Ditolak</span>';
                     return '<span class="badge badge-secondary">Draft</span>';
                 }

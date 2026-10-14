@@ -105,18 +105,34 @@
             <div class="col-md-12">
                 <div class="ibox">
                     <div class="ibox-content">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <button type="button" id="btnSetujui" class="btn btn-primary btn-block">
-                                    <i class="fa fa-check"></i> Setujui
-                                </button>
+                        <?php if ((int)($spm['KD_STATUS'] ?? 0) === 4): ?>
+                            <div class="alert alert-primary text-center font-bold mb-0" style="background-color: #1ab394; color: #fff;">
+                                <i class="fa fa-check-circle fa-2x"></i><br>
+                                <span style="font-size: 15px;">SPM INI TELAH DIVERIFIKASI &amp; DISETUJUI</span>
+                                <br><small><i class="fa fa-calendar"></i> Waktu Verifikasi: <?= !empty($spm['TGL_VEIFIKASI']) ? date('d-m-Y H:i', strtotime($spm['TGL_VEIFIKASI'])) : '-' ?></small>
                             </div>
-                            <div class="col-md-6">
-                                <button type="button" id="btnTolak" class="btn btn-danger btn-block">
-                                    <i class="fa fa-times"></i> Tolak
-                                </button>
+                        <?php elseif ((int)($spm['KD_STATUS'] ?? 0) === 5): ?>
+                            <div class="alert alert-danger text-center font-bold mb-0">
+                                <i class="fa fa-times-circle fa-2x"></i><br>
+                                <span style="font-size: 15px;">SPM INI DITOLAK</span>
+                                <?php if (!empty($spm['ALASAN_PENOLAKAN'])): ?>
+                                    <br><small>Alasan: <?= esc($spm['ALASAN_PENOLAKAN']) ?></small>
+                                <?php endif; ?>
                             </div>
-                        </div>
+                        <?php else: ?>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <button type="button" id="btnSetujui" class="btn btn-primary btn-block">
+                                        <i class="fa fa-check"></i> Setujui
+                                    </button>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="button" id="btnTolak" class="btn btn-danger btn-block">
+                                        <i class="fa fa-times"></i> Tolak
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

@@ -10,17 +10,25 @@
                     <h5 class="typewriter"><?= esc($Keterangan) ?></h5>
                 </div>
                 <div class="ibox-content">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="btn-group" role="group" id="btnGroupFilter">
+                            <button type="button" class="btn btn-sm btn-primary active btn-filter" data-status="">Semua Pengajuan</button>
+                            <button type="button" class="btn btn-sm btn-white btn-filter" data-status="Menunggu"><i class="fa fa-clock-o text-warning"></i> Menunggu Persetujuan</button>
+                            <button type="button" class="btn btn-sm btn-white btn-filter" data-status="Diverifikasi"><i class="fa fa-check text-navy font-bold"></i> Sudah Diverifikasi</button>
+                        </div>
+                    </div>
                     <div class="table-responsive">
                         <table id="dtDaftar" class="table table-striped table-bordered table-hover" style="width:100%">
                             <thead>
                                 <tr>
-                                    <th class="text-center" style="width: 5%;">No</th>
+                                    <th class="text-center" style="width: 4%;">No</th>
                                     <th class="text-center" style="width: 15%;">ID Pengajuan</th>
-                                    <th class="text-center" style="width: 10%;">Tanggal</th>
-                                    <th class="text-center" style="width: 25%;">Nama OPD</th>
-                                    <th class="text-center" style="width: 25%;">Program Kegiatan / Sub Kegiatan</th>
+                                    <th class="text-center" style="width: 9%;">Tanggal</th>
+                                    <th class="text-center" style="width: 20%;">Nama OPD</th>
+                                    <th class="text-center" style="width: 22%;">Program Kegiatan / Sub Kegiatan</th>
                                     <th class="text-center" style="width: 12%;">Anggaran</th>
-                                    <th class="text-center" style="width: 8%;">Opsi</th>
+                                    <th class="text-center" style="width: 12%;">Status Verifikasi</th>
+                                    <th class="text-center" style="width: 6%;">Opsi</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -40,6 +48,14 @@
 <script type="text/javascript">
     $(document).ready(function () {
         LoadDataList();
+
+        $('.btn-filter').on('click', function() {
+            $('.btn-filter').removeClass('active btn-primary').addClass('btn-white');
+            $(this).removeClass('btn-white').addClass('active btn-primary');
+
+            var filterVal = $(this).data('status');
+            $('#dtDaftar').DataTable().column(6).search(filterVal).draw();
+        });
     });
 
     setInterval(function () { Reload(); }, 25000);
@@ -55,20 +71,52 @@
             },
             columns: [
                 {
-                    data: null, className: 'text-center', width: '5%', render: function (data, type, row, meta) {
+                    data: null, className: 'text-center', width: '4%', render: function (data, type, row, meta) {
                         return meta.row + 1;
                     }
                 },
-                { data: 'ID_PENGAJUAN', className: 'text-center id font-bold' },
+                { 
+                    data: 'ID_PENGAJUAN', 
+                    className: 'text-center font-bold text-nowrap',
+                    render: function (data, type, row) {
+                        var icon = '';
+                        if (parseInt(row.KD_STATUS) === 4) {
+                            icon = '<i class="fa fa-check-circle text-primary mr-1" title="Sudah Diverifikasi"></i> ';
+                        }
+                        return icon + '<span class="id">' + data + '</span>';
+                    }
+                },
                 { data: 'TGL_PENGAJUAN', className: 'text-center', render: function (d) { return d ? moment(d).format("DD-MM-YYYY") : '-' } },
                 { data: 'KD_SKPD', className: 'text-left' },
                 { data: 'NM_PROGRAM_KEGIATAN_SUBKEGIATAN', className: 'text-left' },
                 { data: 'ANGGARAN', className: 'text-right font-bold', render: $.fn.dataTable.render.number('.', ',', 2) },
                 {
+                    data: 'KD_STATUS',
+                    className: 'text-center text-nowrap',
+                    width: '12%',
+                    render: function (s, type, row) {
+                        s = parseInt(s);
+                        if (s === 4) {
+                            return '<span class="badge badge-primary font-bold px-2 py-1"><i class="fa fa-check"></i> Sudah Diverifikasi</span>';
+                        } else if (s === 3) {
+                            return '<span class="badge badge-warning font-bold px-2 py-1"><i class="fa fa-clock-o"></i> Menunggu Persetujuan</span>';
+                        } else if (s === 5) {
+                            return '<span class="badge badge-danger font-bold px-2 py-1" title="' + (row.ALASAN_PENOLAKAN || 'Ditolak') + '"><i class="fa fa-times"></i> Ditolak</span>';
+                        } else if (s === 2) {
+                            return '<span class="badge badge-warning font-bold px-2 py-1">Verifikasi 2</span>';
+                        } else if (s === 1) {
+                            return '<span class="badge badge-info font-bold px-2 py-1">Verifikasi 1</span>';
+                        }
+                        return '<span class="badge badge-secondary px-2 py-1">Draft</span>';
+                    }
+                },
+                {
                     data: null,
                     className: 'text-center',
-                    width: '9%',
-                    defaultContent: '<button type="button" class="btn btn-xs btn-info btn-outline btn-detail" data-toggle="tooltip" data-placement="top" title="Detail"><i class="fa fa-search"></i> Detail</button>'
+                    width: '6%',
+                    render: function(data, type, row) {
+                        return '<button type="button" class="btn btn-xs btn-info btn-outline btn-detail" data-id="' + row.ID_PENGAJUAN + '" data-toggle="tooltip" data-placement="top" title="Detail"><i class="fa fa-search"></i> Detail</button>';
+                    }
                 }
             ],
             autoWidth: false,
@@ -117,7 +165,7 @@
     }
 
     $('#dtDaftar').on('click', 'button.btn-detail', function (e) {
-        var id = $(this).closest("tr").find(".id").text();
+        var id = $(this).data('id') || $(this).closest("tr").find(".id").text().trim();
         Detail(id);
     });
 
