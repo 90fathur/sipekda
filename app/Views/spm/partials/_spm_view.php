@@ -40,6 +40,7 @@
                         elseif ($s === 3) echo '<span class="badge badge-primary">Menunggu Persetujuan</span>';
                         elseif ($s === 4) echo '<span class="badge badge-success">Selesai / SP2D</span>';
                         elseif ($s === 5) echo '<span class="badge badge-danger">Ditolak: ' . esc($spm['ALASAN_PENOLAKAN']) . '</span>';
+                        elseif ($s === 6) echo '<span class="badge badge-primary font-bold px-2 py-1" style="background-color: #1c84c6; color: #fff;"><i class="fa fa-check-circle"></i> Sudah di Proses di SIPD</span>';
                         ?>
                     </td>
                 </tr>

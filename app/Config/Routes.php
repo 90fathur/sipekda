@@ -94,6 +94,8 @@ $routes->group('spm', ['filter' => 'auth'], function ($routes) {
     $routes->get('spmview', 'SPM::spmView');
     $routes->get('spmviewnpd', 'SPM::spmViewNPD');
     $routes->get('getdatadetail', 'SPM::getDataDetail');
+    $routes->post('prosessipd', 'SPM::prosesSIPD');
+    $routes->post('batalprosessipd', 'SPM::batalProsesSIPD');
 });
 
 // BPKAD Approval (Protected: Verifikator & Approver only)

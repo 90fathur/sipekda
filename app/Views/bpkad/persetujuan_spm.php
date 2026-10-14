@@ -136,7 +136,7 @@
             },
             createdRow: function (row, data, dataIndex) {
                 var s = parseInt(data.KD_STATUS);
-                if (s === 4) {
+                if (s === 4 || s === 6) {
                     $(row).addClass('row-verified');
                 } else if (s === 3) {
                     $(row).addClass('row-pending');
@@ -157,8 +157,8 @@
                     orderable: false,
                     render: function (s, type, row) {
                         s = parseInt(s);
-                        if (s === 4) {
-                            return '<div class="chk-container" title="Sudah diverifikasi (Klik untuk membatalkan)">' +
+                        if (s === 4 || s === 6) {
+                            return '<div class="chk-container" title="' + (s === 6 ? 'Sudah di Proses di SIPD' : 'Sudah diverifikasi') + ' (Klik untuk membatalkan)">' +
                                    '<input type="checkbox" class="chk-verif-spm" data-id="' + row.ID_PENGAJUAN + '" checked />' +
                                    '</div>';
                         } else if (s === 3) {
@@ -176,8 +176,11 @@
                     className: 'text-center font-bold text-nowrap align-middle',
                     render: function (data, type, row) {
                         var icon = '';
-                        if (parseInt(row.KD_STATUS) === 4) {
+                        var s = parseInt(row.KD_STATUS);
+                        if (s === 4) {
                             icon = '<i class="fa fa-check-circle text-primary mr-1" title="Sudah Diverifikasi"></i> ';
+                        } else if (s === 6) {
+                            icon = '<i class="fa fa-check-double text-primary mr-1" title="Sudah di Proses di SIPD"></i> ';
                         }
                         return icon + '<span class="id">' + data + '</span>';
                     }
@@ -194,6 +197,8 @@
                         s = parseInt(s);
                         if (s === 4) {
                             return '<span class="badge badge-primary font-bold px-2 py-1"><i class="fa fa-check"></i> Sudah Diverifikasi</span>';
+                        } else if (s === 6) {
+                            return '<span class="badge badge-primary font-bold px-2 py-1" style="background-color: #1c84c6; color: #fff;"><i class="fa fa-check-circle"></i> Sudah di Proses di SIPD</span>';
                         } else if (s === 3) {
                             return '<span class="badge badge-warning font-bold px-2 py-1"><i class="fa fa-clock-o"></i> Menunggu Persetujuan</span>';
                         } else if (s === 5) {

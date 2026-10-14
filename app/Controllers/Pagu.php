@@ -102,9 +102,9 @@ class Pagu extends BaseController
 
         $db = \Config\Database::connect();
         
-        // Track usage in approved SPM (KD_STATUS in [3, 4]) in current year
+        // Track usage in approved SPM (KD_STATUS in [3, 4, 6]) in current year
         $spmQuery = $db->table('tb_spm')
-            ->whereIn('KD_STATUS', [3, 4])
+            ->whereIn('KD_STATUS', [3, 4, 6])
             ->where('YEAR(TGL_PENGAJUAN)', $currentYear);
 
         if ($loginData['JENIS_USER'] === 'User' && !empty($loginData['KD_UNITKER'])) {

@@ -114,6 +114,17 @@
                                     </button>
                                 </div>
                             </div>
+                        <?php elseif ((int)($npd['KD_STATUS'] ?? 0) === 6): ?>
+                            <div class="alert alert-primary text-center font-bold mb-0" style="background-color: #1c84c6; color: #fff;">
+                                <i class="fa fa-check-double fa-2x"></i><br>
+                                <span style="font-size: 15px;">NPD INI SUDAH DI PROSES DI SIPD</span>
+                                <br><small><i class="fa fa-calendar"></i> Waktu Verifikasi: <?= !empty($npd['TGL_VEIFIKASI']) ? date('d-m-Y H:i', strtotime($npd['TGL_VEIFIKASI'])) : '-' ?></small>
+                                <div class="mt-3">
+                                    <button type="button" id="btnBatalVerif" class="btn btn-sm btn-white text-danger font-bold shadow-sm">
+                                        <i class="fa fa-undo"></i> Batalkan Status
+                                    </button>
+                                </div>
+                            </div>
                         <?php elseif ((int)($npd['KD_STATUS'] ?? 0) === 5): ?>
                             <div class="alert alert-danger text-center font-bold mb-0">
                                 <i class="fa fa-times-circle fa-2x"></i><br>

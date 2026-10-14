@@ -82,10 +82,10 @@ class SPM extends BaseController
         }
 
         $db = \Config\Database::connect();
-        // NPD status = 3 or 4 (Approved by BPKAD / Persetujuan Akhir), matching current user's SKPD, and not yet in tb_spm
+        // NPD status = 3, 4, or 6 (Approved by BPKAD / Persetujuan Akhir / Diproses SIPD), matching current user's SKPD, and not yet in tb_spm
         $list = $db->table('tb_npd n')
             ->select('n.ID_PENGAJUAN, n.NM_PROGRAM_KEGIATAN_SUBKEGIATAN')
-            ->whereIn('n.KD_STATUS', [3, 4])
+            ->whereIn('n.KD_STATUS', [3, 4, 6])
             ->where('n.KD_SKPD', $loginData['KD_UNITKER'])
             ->where("NOT EXISTS (SELECT 1 FROM tb_spm s WHERE s.ID_NPD = n.ID_PENGAJUAN)", null, false)
             ->get()
@@ -543,12 +543,15 @@ class SPM extends BaseController
             return redirect()->to(base_url('user/login'));
         }
 
+        $isBPKAD = in_array($loginData['JENIS_USER'], ['Admin', 'Persetujuan', 'Verifikasi 1', 'Verifikasi 2']);
+
         $data = [
             'Header'       => 'STATUS PENGAJUAN (SPM/SPP)',
             'Title'        => 'Users',
             'Keterangan'   => 'Monitoring status dari pengajuan SPP/SPM.',
             'NAMA_LENGKAP' => $loginData['NAMA_LENGKAP'],
             'NM_UNITKER'   => $loginData['NM_UNITKER'],
+            'isBPKAD'      => $isBPKAD,
             'LAST_LOGIN'   => '[' . date('d-m-Y H:i:s', strtotime($loginData['LAST_LOGIN'] ?? 'now')) . ']'
         ];
 
@@ -562,12 +565,15 @@ class SPM extends BaseController
             return redirect()->to(base_url('user/login'));
         }
 
+        $isBPKAD = in_array($loginData['JENIS_USER'], ['Admin', 'Persetujuan', 'Verifikasi 1', 'Verifikasi 2']);
+
         $data = [
             'Header'       => 'STATUS PENGAJUAN (NPD)',
             'Title'        => 'Users',
             'Keterangan'   => 'Monitoring status dari pengajuan NPD.',
             'NAMA_LENGKAP' => $loginData['NAMA_LENGKAP'],
             'NM_UNITKER'   => $loginData['NM_UNITKER'],
+            'isBPKAD'      => $isBPKAD,
             'LAST_LOGIN'   => '[' . date('d-m-Y H:i:s', strtotime($loginData['LAST_LOGIN'] ?? 'now')) . ']'
         ];
 
@@ -1167,5 +1173,61 @@ class SPM extends BaseController
         }
 
         return $rekeningList;
+    }
+
+    public function prosesSIPD()
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('Login');
+        }
+
+        try {
+            $id = $this->request->getPost('id');
+            $isNpd = filter_var($this->request->getPost('isNpd'), FILTER_VALIDATE_BOOLEAN);
+            $model = $isNpd ? $this->npdModel : $this->spmModel;
+
+            $item = $model->where('ID_PENGAJUAN', $id)->first();
+            if (!$item) {
+                return $this->response->setBody('#Data pengajuan tidak ditemukan.');
+            }
+
+            // Ubah KD_STATUS menjadi 6: Sudah di Proses di SIPD
+            $model->where('ID_PENGAJUAN', $id)->set([
+                'KD_STATUS' => 6
+            ])->update();
+
+            return $this->response->setBody('00');
+        } catch (\Exception $e) {
+            return $this->response->setBody('#' . $e->getMessage());
+        }
+    }
+
+    public function batalProsesSIPD()
+    {
+        $loginData = $this->getLoginData();
+        if (!$loginData) {
+            return $this->response->setBody('Login');
+        }
+
+        try {
+            $id = $this->request->getPost('id');
+            $isNpd = filter_var($this->request->getPost('isNpd'), FILTER_VALIDATE_BOOLEAN);
+            $model = $isNpd ? $this->npdModel : $this->spmModel;
+
+            $item = $model->where('ID_PENGAJUAN', $id)->first();
+            if (!$item) {
+                return $this->response->setBody('#Data pengajuan tidak ditemukan.');
+            }
+
+            // Kembalikan ke KD_STATUS = 4: Selesai Verifikasi / SP2D
+            $model->where('ID_PENGAJUAN', $id)->set([
+                'KD_STATUS' => 4
+            ])->update();
+
+            return $this->response->setBody('00');
+        } catch (\Exception $e) {
+            return $this->response->setBody('#' . $e->getMessage());
+        }
     }
 }

@@ -123,12 +123,12 @@ class BPKAD extends BaseController
             }
             $builder->where('spm.KD_STATUS', 2);
         } elseif ($jenisUser === 'Persetujuan') {
-            $builder->whereIn('spm.KD_STATUS', [3, 4, 5]);
-            $builder->orderBy("(CASE WHEN spm.KD_STATUS = 3 THEN 0 WHEN spm.KD_STATUS = 4 THEN 1 ELSE 2 END)", 'ASC');
+            $builder->whereIn('spm.KD_STATUS', [3, 4, 5, 6]);
+            $builder->orderBy("(CASE WHEN spm.KD_STATUS = 3 THEN 0 WHEN spm.KD_STATUS = 4 THEN 1 WHEN spm.KD_STATUS = 6 THEN 2 ELSE 3 END)", 'ASC');
         } elseif ($jenisUser === 'Admin') {
             // Admin can view all statuses
-            $builder->whereIn('spm.KD_STATUS', [1, 2, 3, 4, 5]);
-            $builder->orderBy("(CASE WHEN spm.KD_STATUS = 3 THEN 0 WHEN spm.KD_STATUS = 4 THEN 1 ELSE 2 END)", 'ASC');
+            $builder->whereIn('spm.KD_STATUS', [1, 2, 3, 4, 5, 6]);
+            $builder->orderBy("(CASE WHEN spm.KD_STATUS = 3 THEN 0 WHEN spm.KD_STATUS = 4 THEN 1 WHEN spm.KD_STATUS = 6 THEN 2 ELSE 3 END)", 'ASC');
         } else {
             return $this->response->setJSON([]);
         }
